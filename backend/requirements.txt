@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+python-multipart
+bcrypt==4.0.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]
+Pillow
+numpy
+pydantic-settings
+email-validator
+tensorflow
+
+# If you have a real model: onnxruntime OR torch (choose one)
+# onnxruntime
+# torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121

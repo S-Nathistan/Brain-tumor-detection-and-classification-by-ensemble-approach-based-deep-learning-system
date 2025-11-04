@@ -1,0 +1,71 @@
+
+Python version 3.11
+node 
+postgresql
+
+
+-------------------create database--------------------
+
+1) open pgadmin 
+
+2) create new database called "brain_tumor"
+
+
+
+
+
+---------------------open the project in vs code-----------------------------
+1) clone the project 
+
+2) go to root folder 
+
+3) run from cmd 
+
+4) paste "code."
+
+
+---------------------backend----------------------------- (http://127.0.0.1:8000/docs)
+
+1) go to backend folder in VS CODE
+
+2) py -3.11 -m venv .venv
+
+3) .\.venv\Scripts\Activate
+
+4) python -m pip install --upgrade pip setuptools wheel
+
+5) pip install --no-cache-dir -r requirements.txt
+
+6) go back to cd ..
+
+7) python -m uvicorn backend.main:app --reload --port 8000
+
+
+
+
+
+--------------------------frontend ------------------------------------------
+
+1) go to frontend folder in VS CODE
+
+2) npm install
+
+3) npm run dev
+
+
+
+
+
+
+-------------------test database connection--------------------
+
+.venv) PS D:\New folder\Final project\22_10_2025\backend> python test_db.py
+
+
+
+
+-------------------create new user--------------------(http://127.0.0.1:8000/docs)
+
+1)  go to the  http://127.0.0.1:8000/docs
+
+
