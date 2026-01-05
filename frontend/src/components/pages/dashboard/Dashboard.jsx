@@ -79,7 +79,7 @@ export default function Dashboard() {
               <h1 className="text-2xl font-semibold text-gray-800">Role-Based Dashboard</h1>
               <p className="text-sm text-gray-500 mt-1">Administrative overview and system activity</p>
             </div>
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               {['Admin', 'Clinician', 'Attendant'].map((r) => (
                 <button
                   key={r}
@@ -88,7 +88,7 @@ export default function Dashboard() {
                   {r}
                 </button>
               ))}
-            </div>
+            </div> */}
           </div>
 
           <div className="mt-6">
