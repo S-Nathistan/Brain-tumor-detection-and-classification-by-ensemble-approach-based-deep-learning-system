@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { removeToken, api } from "../../../util";
 
 function TopNav({ onToggleSidebar }) {
   return (
@@ -28,7 +29,7 @@ function TopNav({ onToggleSidebar }) {
   );
 }
 
-function Sidebar({ collapsed }) {
+function Sidebar({ collapsed, user }) {
   const LinkItem = ({ to, label, indent = false }) => (
     <NavLink
       to={to}
@@ -43,7 +44,7 @@ function Sidebar({ collapsed }) {
   return (
     <aside className={`bg-white w-72 border-r p-5 ${collapsed ? "hidden md:block" : "block"}`}>
       <nav className="space-y-3 text-sm">
-        <LinkItem to="/" label="Dashboard" />
+        {user?.role === "Admin" && <LinkItem to="/" label="Dashboard" />}
         <div className="text-gray-600 mt-2">Patient Records</div>
         <LinkItem to="/patients" label="All Patients" indent />
         <LinkItem to="/patients/new" label="Add New Patient" indent />
@@ -56,8 +57,20 @@ function Sidebar({ collapsed }) {
         <div className="text-gray-600 mt-2">System Management</div>
         <LinkItem to="/system/audit-logs" label="Audit Logs" indent />
         <LinkItem to="/system/user-roles" label="User Roles" indent />
+        <div className="text-gray-600 mt-2">Staff Management</div>
+        <LinkItem to="/staff" label="All Staffs" indent />
+        <LinkItem to="/staff/new" label="Add New Staff" indent />
+
         <div className="mt-6">
-          <button className="w-full text-left text-red-600 border border-red-100 rounded-lg px-3 py-2 hover:bg-red-50 transition">Logout</button>
+          <button
+            onClick={() => {
+              removeToken();
+              window.location.href = "/";
+            }}
+            className="w-full text-left text-red-600 border border-red-100 rounded-lg px-3 py-2 hover:bg-red-50 transition"
+          >
+            Logout
+          </button>
         </div>
       </nav>
     </aside>
@@ -65,14 +78,19 @@ function Sidebar({ collapsed }) {
 }
 
 export default function Dashboard() {
-  const [role, setRole] = useState("Admin");
+  const [user, setUser] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    api("/auth/me").then(setUser).catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <TopNav onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex">
-        <Sidebar collapsed={sidebarCollapsed} />
+        <Sidebar collapsed={sidebarCollapsed} user={user} />
         <main className="flex-1 p-8">
           <div className="flex items-start justify-between">
             <div>
@@ -80,14 +98,11 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500 mt-1">Administrative overview and system activity</p>
             </div>
             <div className="flex items-center gap-2">
-              {['Admin', 'Clinician', 'Attendant'].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRole(r)}
-                  className={`px-3 py-1.5 rounded-md text-sm ${role === r ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-                  {r}
-                </button>
-              ))}
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-md text-sm bg-indigo-600 text-white font-medium">
+                  {user ? user.role : "Loading..."}
+                </span>
+              </div>
             </div>
           </div>
 

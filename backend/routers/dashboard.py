@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, timedelta
 from jose import jwt
 
@@ -20,17 +21,19 @@ def get_user_id(authorization: str | None = Header(default=None)) -> int:
 
 @router.get("/summary")
 def summary(db: Session = Depends(get_db), user_id: int = Depends(get_user_id)):
-    total_users = db.query(User).count()
-    # Active sessions: use results in last 24 hours as a lightweight proxy
+    # Total users breakdown
+    total_counts = db.query(User.role, func.count(User.id)).group_by(User.role).all()
+    total_users_by_role = {role: count for role, count in total_counts}
+    
+    # Active sessions breakdown (approximate by recent results)
     since = datetime.utcnow() - timedelta(hours=24)
-    active_sessions = db.query(Result).filter(Result.created_at >= since).count()
-    # Pending approvals: placeholder (no approval workflow yet)
-    pending_approvals = 0
+    active_counts = db.query(User.role, func.count(Result.id)).join(User).filter(Result.created_at >= since).group_by(User.role).all()
+    active_sessions_by_role = {role: count for role, count in active_counts}
 
     return {
-        "total_users": total_users,
-        "active_sessions": active_sessions,
-        "pending_approvals": pending_approvals,
+        "total_users": total_users_by_role,
+        "active_sessions": active_sessions_by_role,
+        "pending_approvals": 0, # Deprecated
     }
 
 
