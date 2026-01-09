@@ -14,6 +14,13 @@
 import React, { useState, useEffect } from 'react';
 
 const AddNewPatient = ({ onPatientAdded, lastPatientId = "NS-00000" }) => {
+  // MOCK DOCTORS LIST
+  const doctorsList = [
+    { id: "DOC-001", name: "Dr. S. Perera" },
+    { id: "DOC-002", name: "Dr. A. Silva" },
+    { id: "DOC-003", name: "Dr. M. Fernando" }
+  ];
+
   const [patientData, setPatientData] = useState({
     name: '',
     hospitalId: '',
@@ -24,6 +31,7 @@ const AddNewPatient = ({ onPatientAdded, lastPatientId = "NS-00000" }) => {
     phone: '',
     address: '',
     symptomsNotes: '',
+    assignedDoctor: '', // <--- NEW FIELD
   });
 
   const [isOcrLoading, setIsOcrLoading] = useState(false);
@@ -58,6 +66,7 @@ const AddNewPatient = ({ onPatientAdded, lastPatientId = "NS-00000" }) => {
         phone: '+1 555-0123',
         address: '123 Medical Lane, Health City',
         symptomsNotes: 'Patient reports persistent pressure in the frontal lobe and blurred vision for 3 weeks.',
+        assignedDoctor: 'Dr. S. Perera' // <--- OCR detects doctor
       }));
       setIsOcrLoading(false);
     }, 1500);
@@ -78,7 +87,7 @@ const AddNewPatient = ({ onPatientAdded, lastPatientId = "NS-00000" }) => {
     // Reset form but the ID will regenerate via the useEffect
     setPatientData({ 
       name: '', hospitalId: '', age: '', years: 'Years', gender: '',
-      email: '', phone: '', address: '', symptomsNotes: '',
+      email: '', phone: '', address: '', symptomsNotes: '', assignedDoctor: ''
     });
   };
 
@@ -122,8 +131,26 @@ const AddNewPatient = ({ onPatientAdded, lastPatientId = "NS-00000" }) => {
           {/* SECTION 1: IDENTITY */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 border-l-4 border-blue-600 pl-2">
-               <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Patient Identity</h3>
+               <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Patient Identity & Care</h3>
             </div>
+
+            {/* --- NEW: DOCTOR ASSIGNMENT BLOCK --- */}
+            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mx-2">
+              <label className="text-[10px] font-black text-indigo-600 uppercase mb-1 block">Assign Consulting Doctor</label>
+              <select
+                name="assignedDoctor"
+                value={patientData.assignedDoctor}
+                onChange={handleInput}
+                className="w-full p-2 bg-white border border-indigo-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              >
+                <option value="">-- Select Specialist --</option>
+                {doctorsList.map(doc => (
+                  <option key={doc.id} value={doc.name}>{doc.name}</option>
+                ))}
+              </select>
+            </div>
+            {/* ------------------------------------ */}
 
             <div className="grid grid-cols-2 gap-4 px-2">
               <div className="col-span-2">
