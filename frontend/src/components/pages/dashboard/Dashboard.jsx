@@ -49,28 +49,20 @@ function Sidebar({ collapsed, role, onLogout }) {
           <NavItem to="/image/results" label="Classification Results" Icon={Icons.AI} />
         </div>
 
-        {/* REPORT MANAGEMENT */}
-        <div>
-          <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>Report Management</div>
-          <NavItem to="/reports/upload" label="Upload Report" Icon={Icons.Records} />
-          <NavItem to="/reports/history" label="Report History" Icon={Icons.Records} />
-        </div>
 
-        {/* STAFF MANAGEMENT: Admin Only */}
-        {role === "Admin" && (
-          <div>
-            <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>Staff Management</div>
-            <NavItem to="/staff" label="Staff Records" Icon={Icons.Staff} />
-            <NavItem to="/staff/new" label="Add New Staff" Icon={Icons.Add} />
-          </div>
-        )}
+        {/* STAFF MANAGEMENT */}
+        <div>
+          <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>Staff Management</div>
+          <NavItem to="/staff" label="Staff Records" Icon={Icons.Staff} />
+          <NavItem to="/staff/new" label="Add New Staff" Icon={Icons.Add} />
+        </div>
 
         {/* SYSTEM MANAGEMENT: Admin Only */}
         {role === "Admin" && (
           <div>
             <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>System Management</div>
             <NavItem to="/system/audit-logs" label="Audit Logs" Icon={Icons.System} />
-            <NavItem to="/system/user-roles" label="User Roles" Icon={Icons.System} />
+
           </div>
         )}
 
