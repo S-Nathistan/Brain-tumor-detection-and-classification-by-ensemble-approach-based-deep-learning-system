@@ -191,7 +191,9 @@ const AllPatients = () => {
                   <td className="p-4 text-slate-800">{p.name}</td>
                   <td className="p-4 text-slate-500 font-mono text-xs">{p.joinedDate}</td>
                   <td className="p-4 text-slate-500 font-mono text-xs">
-                    {p.dischargeDate === 'Pending' ? <span className="text-amber-500 italic">Pending</span> : p.dischargeDate}
+                    {p.dischargeDate === 'Pending' ? (
+                      <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded font-black text-[10px] uppercase tracking-tighter">Pending</span>
+                    ) : p.dischargeDate}
                   </td>
                   <td className="p-4 text-center font-bold text-slate-700">{p.riskScore}</td>
                   <td className="p-4">
@@ -253,6 +255,39 @@ const AllPatients = () => {
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Hospital ID</label>
                     <input disabled className="w-full border-b py-1 bg-transparent text-slate-500 font-mono" defaultValue={selectedPatient.hospitalId} />
                   </div>
+
+                  {/* INTEGRATED DATE FIELDS */}
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-600 uppercase">Joined Date (System)</label>
+                    <input 
+                      disabled={modalMode === 'view'} 
+                      type={modalMode === 'edit' ? 'date' : 'text'} 
+                      className="w-full border-b py-1 bg-indigo-50/20 text-slate-500 font-mono" 
+                      defaultValue={selectedPatient.joinedDate} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Discharge Date</label>
+                    <div className="relative">
+                      <input 
+                        disabled={modalMode === 'view'} 
+                        id="dischargeInput"
+                        type={modalMode === 'edit' ? 'date' : 'text'}
+                        className="w-full border-b py-1 outline-none focus:border-blue-500 disabled:bg-transparent" 
+                        defaultValue={selectedPatient.dischargeDate === 'Pending' && modalMode === 'view' ? 'Still In Hospital' : (selectedPatient.dischargeDate === 'Pending' ? '' : selectedPatient.dischargeDate)} 
+                      />
+                      {modalMode === 'edit' && (
+                        <button 
+                          type="button" 
+                          onClick={() => {document.getElementById('dischargeInput').value = ''}} 
+                          className="text-[9px] font-black text-amber-600 uppercase mt-1 block hover:underline"
+                        >
+                          Reset to Pending
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Age</label>
                     <input disabled={modalMode === 'view'} className="w-full border-b py-1 outline-none disabled:bg-transparent" defaultValue={selectedPatient.age} />
