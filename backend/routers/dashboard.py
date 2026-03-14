@@ -10,6 +10,7 @@ from backend.models.user import User
 from backend.models.result import Result
 from backend.models.patient import Patient
 from backend.models.audit_log import AuditLog
+from backend.routers import auth, results, patients, dashboard
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"]) 
 

@@ -111,4 +111,6 @@ export default function UploadMRI() {
       </div>
     </div>
   );
-}
+};
+
+export default UploadMRI;

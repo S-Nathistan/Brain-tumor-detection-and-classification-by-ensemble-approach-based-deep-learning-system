@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header, Request
 from sqlalchemy.orm import Session
-from pathlib import Path
+import os
+import uuid
 import shutil
 
 from backend.db.database import get_db
-from backend.core.config import settings
-from backend.core.detector import predict
-from backend.models.user import User
 from backend.models.result import Result
 from backend.schemas.result import ResultRead
 from jose import jwt
