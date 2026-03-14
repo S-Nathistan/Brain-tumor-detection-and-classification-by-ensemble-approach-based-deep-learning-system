@@ -11,6 +11,8 @@ import UploadReport from "./components/pages/dashboard/Components/UploadReport";
 import ReportHistory from "./components/pages/dashboard/Components/ReportHistory";
 import AuditLogs from "./components/pages/dashboard/Components/AuditLogs";
 import UserRoles from "./components/pages/dashboard/Components/UserRoles";
+import AllStaffs from "./components/pages/dashboard/Components/AllStaffs";
+import AddNewStaff from "./components/pages/dashboard/Components/AddNewStaff";
 import ResultViewer from "./components/ResultViewer";
 import { getToken } from "./util";
 
@@ -39,6 +41,10 @@ export default function App() {
           <Route path="system">
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="user-roles" element={<UserRoles />} />
+          </Route>
+          <Route path="staff">
+            <Route index element={<AllStaffs />} />
+            <Route path="new" element={<AddNewStaff />} />
           </Route>
           <Route path="results/:id" element={<ResultViewer />} />
         </Route>

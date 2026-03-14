@@ -566,6 +566,7 @@
 // ===========================================================================================
 
 import React, { useState, useEffect } from 'react';
+import { api } from "../../../../util";
 
 const AddNewPatient = ({ onPatientAdded }) => {
   // MOCK DOCTORS LIST
@@ -620,6 +621,15 @@ const AddNewPatient = ({ onPatientAdded }) => {
 
   // 2. Auto-generate the next ID when the component loads
   useEffect(() => {
+    const prefix = "NS-";
+    const lastNum = parseInt(lastPatientId.replace(prefix, ""), 10);
+    const nextNum = (lastNum + 1).toString().padStart(5, '0');
+
+    setPatientData(prev => ({
+      ...prev,
+      hospitalId: `${prefix}${nextNum}`
+    }));
+  }, [lastPatientId]);
     fetchLatestId().then(newId => {
       setPatientData(prev => ({ ...prev, hospitalId: newId }));
     });
@@ -693,6 +703,42 @@ const AddNewPatient = ({ onPatientAdded }) => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Add age units
+    const finalAge = patientData.age ? `${patientData.age} ${patientData.years}` : '';
+
+    const finalData = {
+      hospital_id: patientData.hospitalId,
+      name: patientData.name,
+      age: finalAge,
+      gender: patientData.gender,
+      email: patientData.email,
+      phone: patientData.phone,
+      address: patientData.address,
+      symptoms: patientData.symptomsNotes,
+      joined_date: new Date().toISOString().split('T')[0],
+      discharge_date: 'Pending',
+      tumour_type: 'Not Classified'
+    };
+
+    try {
+      await api("/patients/", {
+        method: "POST",
+        body: JSON.stringify(finalData)
+      });
+      alert("Patient added successfully!");
+      if (onPatientAdded) onPatientAdded(finalData);
+    } catch (err) {
+      alert("Error adding patient: " + err.message);
+    }
+
+    // Reset form but the ID will regenerate via the useEffect
+    setPatientData({
+      name: '', hospitalId: '', age: '', years: 'Years', gender: '',
+      email: '', phone: '', address: '', symptomsNotes: '',
+    });
   // --- REAL DATABASE SAVE CALL ---
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -767,7 +813,7 @@ const AddNewPatient = ({ onPatientAdded }) => {
       </div>
 
       <div className="p-5 space-y-6">
-        
+
         {/* THE DROP BOX (OCR) */}
         <div className="group relative">
           <div 
@@ -781,6 +827,17 @@ const AddNewPatient = ({ onPatientAdded }) => {
           >
             <span className="text-3xl mb-1 group-hover:scale-110 transition-transform">📄</span>
             <p className="text-[11px] font-black text-blue-900 uppercase">Medical Report Drop-Box</p>
+            <p className="text-[9px] text-blue-400 mb-3 font-bold italic">Drag & Drop Scanned Report</p>
+
+            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" />
+
+            <button
+              type="button"
+              onClick={runOCR}
+              className="relative z-10 bg-blue-600 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-blue-700 transition shadow-md active:scale-95"
+            >
+              {isOcrLoading ? "AI Processing..." : "Start OCR Extraction"}
+            </button>
             <p className="text-[9px] text-blue-400 mb-3 font-bold italic">Drag & Drop Image or PDF Here</p>
             
             {/* The hidden input overlay that captures clicks */}
@@ -802,10 +859,11 @@ const AddNewPatient = ({ onPatientAdded }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          
+
           {/* SECTION 1: IDENTITY */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 border-l-4 border-blue-600 pl-2">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Patient Identity</h3>
                <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Patient Identity & Care</h3>
             </div>
 
@@ -854,7 +912,7 @@ const AddNewPatient = ({ onPatientAdded }) => {
           {/* SECTION 2: CONTACTS */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 border-l-4 border-emerald-500 pl-2">
-               <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Contact Information</h3>
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Contact Information</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4 px-2 bg-emerald-50/20 p-4 rounded-2xl border border-emerald-100">
@@ -862,7 +920,7 @@ const AddNewPatient = ({ onPatientAdded }) => {
                 <label className="text-[10px] font-bold text-emerald-700/60 uppercase">Delivery Email</label>
                 <input name="email" type="email" value={patientData.email} onChange={handleInput} placeholder="patient@mail.com" className="w-full bg-transparent border-b border-emerald-200 py-1 text-xs outline-none focus:border-emerald-500" required />
               </div>
-              
+
               <div>
                 <label className="text-[10px] font-bold text-emerald-700/60 uppercase">Phone Number</label>
                 <input name="phone" type="tel" value={patientData.phone} onChange={handleInput} placeholder="+94..." className="w-full bg-transparent border-b border-emerald-200 py-1 text-xs outline-none focus:border-emerald-500" required />
@@ -880,6 +938,14 @@ const AddNewPatient = ({ onPatientAdded }) => {
             <div className="flex items-center gap-2 border-l-4 border-amber-400 pl-2">
               <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Symptoms & Clinical Notes</h3>
             </div>
+            <textarea
+              name="symptomsNotes"
+              value={patientData.symptomsNotes}
+              onChange={handleInput}
+              rows="3"
+              placeholder="Clinical observations..."
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-inner"
+            />
             <textarea name="symptomsNotes" value={patientData.symptomsNotes} onChange={handleInput} rows="3" placeholder="Clinical observations..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-100 transition-all shadow-inner" />
           </div>
 

@@ -1,109 +1,6 @@
-// import { useState } from "react";
-// import { NavLink, Outlet } from "react-router-dom";
-
-// function TopNav({ onToggleSidebar }) {
-//   return (
-//     <div className="flex items-center justify-between py-3 px-4 border-b bg-white">
-//       <div className="flex items-center gap-4">
-//         <button className="md:hidden text-gray-600" onClick={onToggleSidebar}>
-//           ☰
-//         </button>
-//         <div className="text-xl font-bold text-indigo-700 tracking-tight">NeuroSight</div>
-//       </div>
-//       <div className="flex items-center gap-4">
-//         <div className="hidden md:flex items-center bg-gray-50 border border-gray-100 rounded-lg px-3 py-1 shadow-sm">
-//           <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//             <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
-//             <circle cx="11" cy="11" r="6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-//           </svg>
-//           <input
-//             className="bg-transparent outline-none text-sm text-gray-600 w-72"
-//             placeholder="Search patients or reports..."
-//           />
-//         </div>
-//         <button className="text-gray-600 hover:text-indigo-600 transition">🔔</button>
-//         <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-700 border border-gray-200">A</div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function Sidebar({ collapsed }) {
-//   const LinkItem = ({ to, label, indent = false }) => (
-//     <NavLink
-//       to={to}
-//       className={({ isActive }) =>
-//         `flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg ${isActive ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-600 hover:bg-gray-50"} ${indent ? "ml-4" : ""}`
-//       }
-//     >
-//       {label}
-//     </NavLink>
-//   );
-
-//   return (
-//     <aside className={`bg-white w-72 border-r p-5 ${collapsed ? "hidden md:block" : "block"}`}>
-//       <nav className="space-y-3 text-sm">
-//         <LinkItem to="/" label="Dashboard" />
-//         <div className="text-gray-600 mt-2">Patient Records</div>
-//         <LinkItem to="/patients" label="All Patients" indent />
-//         <LinkItem to="/patients/new" label="Add New Patient" indent />
-//         <div className="text-gray-600 mt-2">Image Analysis</div>
-//         <LinkItem to="/image/upload" label="Upload MRI" indent />
-//         <LinkItem to="/image/results" label="Classification Results" indent />
-//         <div className="text-gray-600 mt-2">Report Management</div>
-//         <LinkItem to="/reports/upload" label="Upload Report" indent />
-//         <LinkItem to="/reports/history" label="Report History" indent />
-//         <div className="text-gray-600 mt-2">System Management</div>
-//         <LinkItem to="/system/audit-logs" label="Audit Logs" indent />
-//         <LinkItem to="/system/user-roles" label="User Roles" indent />
-//         <div className="mt-6">
-//           <button className="w-full text-left text-red-600 border border-red-100 rounded-lg px-3 py-2 hover:bg-red-50 transition">Logout</button>
-//         </div>
-//       </nav>
-//     </aside>
-//   );
-// }
-
-// export default function Dashboard() {
-//   const [role, setRole] = useState("Admin");
-//   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-//   return (
-//     <div className="min-h-screen bg-gray-50">
-//       <TopNav onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
-//       <div className="flex">
-//         <Sidebar collapsed={sidebarCollapsed} />
-//         <main className="flex-1 p-8">
-//           <div className="flex items-start justify-between">
-//             <div>
-//               <h1 className="text-2xl font-semibold text-gray-800">Role-Based Dashboard</h1>
-//               <p className="text-sm text-gray-500 mt-1">Administrative overview and system activity</p>
-//             </div>
-//             {/* <div className="flex items-center gap-2">
-//               {['Admin', 'Clinician', 'Attendant'].map((r) => (
-//                 <button
-//                   key={r}
-//                   onClick={() => setRole(r)}
-//                   className={`px-3 py-1.5 rounded-md text-sm ${role === r ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
-//                   {r}
-//                 </button>
-//               ))}
-//             </div> */}
-//           </div>
-
-//           <div className="mt-6">
-//             <Outlet />
-//           </div>
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
-
-//==================================================================================================================================================================
-
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { removeToken, api } from "../../../util";
 
 // Standardized Corporate SVG Icons
 const Icons = {
@@ -131,7 +28,7 @@ function Sidebar({ collapsed, role, onLogout }) {
       <div className="p-6 mb-4">
         <h1 className={`font-black text-slate-900 tracking-tighter text-xl ${collapsed ? "hidden" : "block"}`}>NEUROSIGHT <span className="text-blue-600">AI</span></h1>
       </div>
-      
+
       <nav className="px-3 space-y-6">
         {/* DASHBOARD OVERVIEW */}
         <div>
@@ -152,20 +49,20 @@ function Sidebar({ collapsed, role, onLogout }) {
           <NavItem to="/image/results" label="Classification Results" Icon={Icons.AI} />
         </div>
 
-        {/* STAFF MANAGEMENT: Admin Only */}
-        {role === "Admin" && (
-          <div>
-            <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>Staff Management</div>
-            <NavItem to="/staff" label="Staff Records" Icon={Icons.Staff} />
-            <NavItem to="/staff/new" label="Add New Staff" Icon={Icons.Add} />
-          </div>
-        )}
+
+        {/* STAFF MANAGEMENT */}
+        <div>
+          <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>Staff Management</div>
+          <NavItem to="/staff" label="Staff Records" Icon={Icons.Staff} />
+          <NavItem to="/staff/new" label="Add New Staff" Icon={Icons.Add} />
+        </div>
 
         {/* SYSTEM MANAGEMENT: Admin Only */}
         {role === "Admin" && (
           <div>
             <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>System Management</div>
             <NavItem to="/system/audit-logs" label="Audit Logs" Icon={Icons.System} />
+
           </div>
         )}
 
@@ -174,9 +71,9 @@ function Sidebar({ collapsed, role, onLogout }) {
           <div className={`mb-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ${collapsed ? 'hidden' : 'block'}`}>User Preferences</div>
           <NavItem to="/settings" label="Personalized Settings" Icon={Icons.Settings} />
           <NavItem to="/notifications" label="Notifications" Icon={Icons.Notification} />
-          
+
           {/* LOGOUT BUTTON */}
-          <button 
+          <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 mt-2 rounded-lg transition-all text-sm text-red-600 hover:bg-red-50 font-medium"
           >
@@ -191,28 +88,38 @@ function Sidebar({ collapsed, role, onLogout }) {
 
 export default function Dashboard() {
   const [collapsed, setCollapsed] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
-  // Change "role" to "Admin", "Doctor", or "Attendant" to test the UI logic
-  const [currentUser] = useState({ role: "Admin", name: "Super Admin" }); 
+
+  useEffect(() => {
+    // Fetch user data from backend
+    api("/auth/me")
+      .then((data) => {
+        setUser(data);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch user:", err);
+      });
+  }, []);
 
   const handleLogout = () => {
-    // Add logout logic here (e.g., clear tokens)
     if (window.confirm("Are you sure you want to logout?")) {
-      navigate("/login");
+      removeToken();
+      window.location.href = "/";
     }
   };
 
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar collapsed={collapsed} role={currentUser.role} onLogout={handleLogout} />
-      
+      <Sidebar collapsed={collapsed} role={user?.role} onLogout={handleLogout} />
+
       <div className="flex-1 flex flex-col">
         {/* Professional Top Header */}
         <header className="h-16 border-b flex items-center justify-between px-8 bg-white sticky top-0 z-40">
           <button onClick={() => setCollapsed(!collapsed)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          
+
           <div className="flex items-center gap-6">
             {/* Global Search Bar */}
             <div className="hidden md:flex items-center bg-slate-50 border border-slate-100 rounded-xl px-4 py-1.5 gap-3">
@@ -222,26 +129,30 @@ export default function Dashboard() {
 
             {/* Notification Badge */}
             <div className="relative cursor-pointer text-slate-400 hover:text-slate-900 transition-all">
-               <Icons.Notification />
-               <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-white"></span>
+              <Icons.Notification />
+              <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border-2 border-white"></span>
             </div>
 
             <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
 
             <div className="flex items-center gap-3">
               <div className="flex flex-col text-right">
-                <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-none">{currentUser.name}</span>
-                <span className="text-[9px] text-blue-600 font-bold uppercase tracking-widest mt-1">{currentUser.role}</span>
+                <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-none">
+                  {user ? (user.name || user.username || user.role) : "Loading..."}
+                </span>
+                <span className="text-[9px] text-blue-600 font-bold uppercase tracking-widest mt-1">
+                  {user ? user.role : "..."}
+                </span>
               </div>
               <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-slate-200 border-2 border-white">
-                {currentUser.name.charAt(0)}
+                {user && (user.name || user.username) ? (user.name || user.username).charAt(0).toUpperCase() : "?"}
               </div>
             </div>
           </div>
         </header>
 
         <main className="p-8 overflow-y-auto bg-slate-50/20 flex-1">
-          <Outlet context={{ currentUser }} />
+          <Outlet context={{ user }} />
         </main>
       </div>
     </div>
