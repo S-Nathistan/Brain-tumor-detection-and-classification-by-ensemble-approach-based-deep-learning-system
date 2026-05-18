@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, String
 import os
@@ -12,8 +13,9 @@ from backend.models.user import User
 
 class Document(Base):
     __tablename__ = "documents"
-    id = Column(Integer, primary_key=True, index=True) # <-- Fixed!
+    id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, index=True)
+    admission_id = Column(Integer, nullable=True)
     original_name = Column(String)
     saved_name = Column(String)
     doc_type = Column(String)
@@ -28,6 +30,7 @@ os.makedirs(DOCS_DIR, exist_ok=True)
 @router.post("/upload")
 async def upload_document(
     patient_id: int = Form(...),
+    admission_id: Optional[int] = Form(None),
     doc_type: str = Form("Clinical Report"),
     description: str = Form(""),
     file: UploadFile = File(...),
@@ -43,6 +46,7 @@ async def upload_document(
 
     new_doc = Document(
         patient_id=patient_id,
+        admission_id=admission_id,
         original_name=file.filename,
         saved_name=safe_name,
         doc_type=doc_type,

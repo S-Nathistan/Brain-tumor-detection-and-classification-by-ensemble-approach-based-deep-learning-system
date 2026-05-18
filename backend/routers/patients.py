@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import List
 import pytesseract
 from PIL import Image
@@ -93,18 +93,33 @@ def create_patient(
 @router.get("", response_model=List[PatientResponse])
 @router.get("/", response_model=List[PatientResponse], include_in_schema=False)
 def get_all_patients(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    return db.query(Patient).order_by(Patient.id.desc()).all()
+    query = db.query(Patient).options(selectinload(Patient.admissions), selectinload(Patient.clinician))
+    if current_user.role == "Clinician":
+        query = query.filter(Patient.assigned_doctor_id == current_user.id)
+    patients = query.order_by(Patient.id.desc()).all()
+    out = []
+    for p in patients:
+        obj = PatientResponse.model_validate(p)
+        obj.assigned_doctor = p.clinician.name if p.clinician else None
+        if p.admissions:
+            latest = p.admissions[-1]  # relationship ordered by id asc, so last = most recent
+            obj.current_joined_date = latest.admission_date
+            obj.current_discharge_date = latest.discharge_date or "Pending"
+        else:
+            obj.current_joined_date = p.joined_date
+            obj.current_discharge_date = p.discharge_date or "Pending"
+        out.append(obj)
+    return out
 
 # Read One
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).options(selectinload(Patient.clinician)).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    return patient
+    obj = PatientResponse.model_validate(patient)
+    obj.assigned_doctor = patient.clinician.name if patient.clinician else None
+    return obj
 
 # Update
 @router.put("/{patient_id}", response_model=PatientResponse)

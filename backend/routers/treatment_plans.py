@@ -17,6 +17,7 @@ class TreatmentPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, index=True, nullable=False)
+    admission_id = Column(Integer, nullable=True)    # links plan to a specific admission episode
     created_by = Column(Integer, nullable=True)      # user_id of the author
     created_by_name = Column(String(255), nullable=True)
     plan_date = Column(String(50), nullable=False)
@@ -34,6 +35,7 @@ class TreatmentPlan(Base):
 # ── Pydantic schemas ────────────────────────────────────────────────
 class TreatmentPlanCreate(BaseModel):
     patient_id: int
+    admission_id: Optional[int] = None
     plan_date: str
     plan_type: str = "General"
     title: str
@@ -58,6 +60,7 @@ class TreatmentPlanUpdate(BaseModel):
 class TreatmentPlanRead(BaseModel):
     id: int
     patient_id: int
+    admission_id: Optional[int] = None
     created_by: Optional[int]
     created_by_name: Optional[str]
     plan_date: str
@@ -77,7 +80,6 @@ class TreatmentPlanRead(BaseModel):
 router = APIRouter(
     prefix="/treatment-plans",
     tags=["treatment-plans"],
-    dependencies=[Depends(require_roles("Clinician"))],
 )
 
 
@@ -86,7 +88,7 @@ def create_plan(
     body: TreatmentPlanCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles("Clinician", "Admin", "Super Admin")),
 ):
     plan = TreatmentPlan(
         **body.model_dump(),
@@ -134,7 +136,7 @@ def update_plan(
     body: TreatmentPlanUpdate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles("Clinician", "Admin", "Super Admin")),
 ):
     plan = db.query(TreatmentPlan).filter(TreatmentPlan.id == plan_id).first()
     if not plan:
@@ -154,7 +156,7 @@ def delete_plan(
     plan_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles("Clinician", "Admin", "Super Admin")),
 ):
     plan = db.query(TreatmentPlan).filter(TreatmentPlan.id == plan_id).first()
     if not plan:

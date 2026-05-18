@@ -33,109 +33,83 @@ export default function AuditLogs() {
     });
   }, [searchTerm, logs]);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Success": return "bg-green-100 text-green-700 border-green-200";
-      case "Failed": return "bg-red-100 text-red-700 border-red-200";
-      case "Warning": return "bg-amber-100 text-amber-700 border-amber-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
-    }
+  const statusStyle = (s) => {
+    if (s === "Success") return { bg: "#dcfce7", text: "#15803d" };
+    if (s === "Failed")  return { bg: "#fef2f2", text: "#b91c1c" };
+    if (s === "Warning") return { bg: "#fef9ee", text: "#92400e" };
+    return { bg: "#f1f5f9", text: "#475569" };
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: "'DM Sans',sans-serif" }}>
+      <style>{`.log-row:hover{background:var(--ns-bg)!important} .fil-btn:hover{background:var(--ns-bg)!important}`}</style>
+
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">System Audit Logs</h1>
-        <p className="text-slate-500 text-sm mt-1">Track and monitor all system activities and security events.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--ns-text)", margin: 0 }}>System Audit Logs</h1>
+        <p style={{ fontSize: 13, color: "var(--ns-text-2)", margin: "4px 0 0" }}>Track and monitor all system activities and security events.</p>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="relative w-full md:w-96">
-          <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input
-            type="text"
-            placeholder="Search logs by action, user, or details..."
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div style={{ background: "var(--ns-surface)", border: "1px solid var(--ns-border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 240, maxWidth: 400 }}>
+          <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ns-text-3)" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search logs by action, user, or details…"
+            style={{ width: "100%", paddingLeft: 34, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: "1px solid var(--ns-border)", borderRadius: 8, fontSize: 13, color: "var(--ns-text)", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box", background: "var(--ns-bg)" }}
+            value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
-
-        <div className="flex gap-2 w-full md:w-auto">
-          {["All", "Success", "Warning", "Failed"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border ${statusFilter === status
-                ? "bg-slate-800 text-white border-slate-800"
-                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-            >
-              {status}
+        <div style={{ display: "flex", gap: 6 }}>
+          {["All", "Success", "Warning", "Failed"].map(s => (
+            <button key={s} className="fil-btn" onClick={() => setStatusFilter(s)}
+              style={{ padding: "7px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", cursor: "pointer", border: `1px solid ${statusFilter === s ? "#0d9488" : "var(--ns-border)"}`, background: statusFilter === s ? "#0d9488" : "var(--ns-surface)", color: statusFilter === s ? "#fff" : "var(--ns-text-2)", transition: "all 0.15s" }}>
+              {s}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {/* Table */}
+      <div style={{ background: "var(--ns-surface)", border: "1px solid var(--ns-border)", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                <th className="p-4">Timestamp</th>
-                <th className="p-4">User</th>
-                <th className="p-4">Action</th>
-                <th className="p-4">IP Address</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Details</th>
+              <tr style={{ background: "var(--ns-bg)", borderBottom: "1px solid var(--ns-border)" }}>
+                {["Timestamp", "User", "Action", "IP Address", "Status", "Details"].map(h => (
+                  <th key={h} style={{ padding: "11px 16px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--ns-text-3)", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-              {filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 whitespace-nowrap font-mono text-slate-500 text-xs">
-                      {new Date(log.timestamp).toLocaleString()}
+            <tbody>
+              {filteredLogs.length > 0 ? filteredLogs.map((log, i) => {
+                const ss = statusStyle(log.status);
+                return (
+                  <tr key={log.id} className="log-row" style={{ borderBottom: i < filteredLogs.length - 1 ? "1px solid var(--ns-border)" : "none" }}>
+                    <td style={{ padding: "13px 16px", fontFamily: "'DM Mono',monospace", fontSize: 11, color: "var(--ns-text-3)", whiteSpace: "nowrap" }}>{new Date(log.timestamp).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                    <td style={{ padding: "13px 16px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ns-text)" }}>{log.user}</div>
+                      <div style={{ fontSize: 11, color: "var(--ns-text-3)" }}>{log.role}</div>
                     </td>
-                    <td className="p-4">
-                      <div className="font-semibold text-slate-900">{log.user}</div>
-                      <div className="text-xs text-slate-400">{log.role}</div>
+                    <td style={{ padding: "13px 16px", fontSize: 13, fontWeight: 500, color: "var(--ns-text-2)" }}>{log.action}</td>
+                    <td style={{ padding: "13px 16px", fontFamily: "'DM Mono',monospace", fontSize: 11, color: "var(--ns-text-3)" }}>{log.ip}</td>
+                    <td style={{ padding: "13px 16px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, background: ss.bg, color: ss.text, padding: "3px 10px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.06em" }}>{log.status}</span>
                     </td>
-                    <td className="p-4 font-medium">{log.action}</td>
-                    <td className="p-4 font-mono text-xs text-slate-500">{log.ip}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wide ${getStatusColor(log.status)}`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-slate-500 max-w-xs truncate" title={log.details}>
-                      {log.details}
-                    </td>
+                    <td style={{ padding: "13px 16px", fontSize: 12, color: "var(--ns-text-2)", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={log.details}>{log.details}</td>
                   </tr>
-                ))
-              ) : (
+                );
+              }) : (
                 <tr>
-                  <td colSpan="6" className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center gap-2">
-                      <svg className="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <span>No logs found matching your criteria.</span>
-                    </div>
-                  </td>
+                  <td colSpan="6" style={{ padding: "48px 0", textAlign: "center", color: "var(--ns-text-3)", fontSize: 13 }}>No logs found matching your criteria.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination Footer (Static for now) */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
-          <span>Showing {filteredLogs.length} of {logs.length} results</span>
-          <div className="flex gap-1">
-            <button disabled className="px-3 py-1 border rounded bg-white text-slate-300 cursor-not-allowed">Previous</button>
-            <button className="px-3 py-1 border rounded bg-white hover:bg-slate-50 text-slate-600 font-medium">Next</button>
+        <div style={{ padding: "12px 18px", borderTop: "1px solid var(--ns-border)", background: "var(--ns-bg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "var(--ns-text-3)" }}>Showing {filteredLogs.length} of {logs.length} results</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button disabled style={{ padding: "5px 12px", border: "1px solid var(--ns-border)", borderRadius: 6, background: "var(--ns-surface)", fontSize: 12, color: "var(--ns-border-2)", cursor: "not-allowed" }}>Previous</button>
+            <button style={{ padding: "5px 12px", border: "1px solid var(--ns-border)", borderRadius: 6, background: "var(--ns-surface)", fontSize: 12, color: "var(--ns-text-2)", cursor: "pointer" }}>Next</button>
           </div>
         </div>
       </div>

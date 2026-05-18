@@ -14,5 +14,10 @@ class User(Base):
     password_reset_token_hash = Column(String(255), nullable=True)
     password_reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    department = Column(String(100), nullable=True)
+    qualification = Column(String(255), nullable=True)
+    license_number = Column(String(100), nullable=True)
+    gender = Column(String(20), nullable=True)
+    profile_picture = Column(String(500), nullable=True)
 
-    results = relationship("Result", back_populates="user")
+    results = relationship("Result", foreign_keys="[Result.user_id]", back_populates="user")

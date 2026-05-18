@@ -56,6 +56,28 @@ def send_email(to_email: str, subject: str, html_content: str):
         server.send_message(msg)
 
 
+def send_password_reset_email(to_email: str, reset_url: str):
+    subject = "NeuroSight — Password Reset Request"
+    html_content = f"""
+    <html>
+        <body style="font-family:Arial,sans-serif;color:#0f172a;">
+            <h2 style="color:#0d9488;">NeuroSight Password Reset</h2>
+            <p>We received a request to reset the password for your account.</p>
+            <p>Click the link below to set a new password. This link expires in 60 minutes.</p>
+            <p><a href="{reset_url}" style="color:#0d9488;">{reset_url}</a></p>
+            <p>If you did not request a password reset, please ignore this email — your account remains secure.</p>
+            <br>
+            <p>NeuroSight Clinical Platform</p>
+        </body>
+    </html>
+    """
+    try:
+        send_email(to_email, subject, html_content)
+        logger.info("Password reset email dispatched to recipient=%s", to_email)
+    except Exception as e:
+        logger.warning("Failed to send password reset email to recipient=%s: %s", to_email, e)
+
+
 def send_welcome_email(to_email: str, user_id: int, activation_url: str):
     subject = "Welcome to NeuroSight - Set Your Password"
 

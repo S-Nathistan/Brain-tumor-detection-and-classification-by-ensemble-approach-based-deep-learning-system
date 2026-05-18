@@ -15,11 +15,27 @@ class Patient(Base):
     email = Column(String(100))
     phone = Column(String(50))
     address = Column(String(255)) # Kept Shameeha's longer 255 limit
-    
+    from_location = Column(String(100), nullable=True)
+    occupation = Column(String(100), nullable=True)
+
     # Medical Information
     symptoms = Column(Text)
+    presenting_complaint = Column(Text, nullable=True)  # doctor's formal write-up
+    symptom_analysis = Column(Text, nullable=True)
+    differential_analysis = Column(Text, nullable=True)
+    complications = Column(Text, nullable=True)
+    risk_factor = Column(Text, nullable=True)
+    systemic_review = Column(Text, nullable=True)
+    past_medical_history = Column(Text, nullable=True)
+    family_history = Column(Text, nullable=True)
+    social_history = Column(Text, nullable=True)
+    allergy_history = Column(Text, nullable=True)
     doctor_notes = Column(Text) # Added by Nirojini
-    assigned_doctor = Column(String(100)) # Added by Shameeha
+    examination_findings = Column(Text, nullable=True)
+    muscle_power = Column(Text, nullable=True)
+    reflex = Column(Text, nullable=True)
+    assigned_doctor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    clinician = relationship("User", foreign_keys=[assigned_doctor_id])
     
     # Status & Scans
     tumour_type = Column(String(100), default="Not Classified")
@@ -33,4 +49,5 @@ class Patient(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) # Added by Nirojini
     
     # Relationships
-    results = relationship("Result", back_populates="patient", cascade="all, delete-orphan") # Added by Shameeha
+    results = relationship("Result", back_populates="patient", cascade="all, delete-orphan")
+    admissions = relationship("Admission", back_populates="patient", cascade="all, delete-orphan", order_by="Admission.id")

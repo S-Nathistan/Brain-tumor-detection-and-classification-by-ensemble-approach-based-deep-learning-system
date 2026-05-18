@@ -8,7 +8,7 @@ from backend.core.config import settings
 from backend.db.database import get_db
 from backend.models.user import User
 
-ALLOWED_ROLES = {"Super Admin", "Admin", "Clinician", "Assistant", "Technician"}
+ALLOWED_ROLES = {"Super Admin", "Admin", "Clinician", "Assistant"}
 
 
 def normalize_role(role: str | None) -> str:

@@ -1,40 +1,31 @@
-# from sqlalchemy import Column, Integer, String, Float, DateTime, func, ForeignKey
-# from sqlalchemy.orm import relationship
-# from backend.db.database import Base
-
-# class Result(Base):
-#     __tablename__ = "results"
-#     id = Column(Integer, primary_key=True, index=True)
-#     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-#     filename = Column(String(512), nullable=False)
-#     predicted_label = Column(String(64), nullable=False)       # e.g., 'tumor' or 'no_tumor'
-#     confidence = Column(Float, nullable=False)                  # 0..1
-#     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-#     user = relationship("User", back_populates="results")
-
-
-# ======================================================================================================================
-
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from backend.db.database import Base
 
+
 class Result(Base):
     __tablename__ = "results"
 
     id = Column(Integer, primary_key=True, index=True)
-    
-    # --- THESE ARE THE MISSING FOREIGN KEYS ---
+
     user_id = Column(Integer, ForeignKey("users.id"))
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
+    admission_id = Column(Integer, ForeignKey("admissions.id"), nullable=True)
 
     filename = Column(String)
     predicted_label = Column(String)
     confidence = Column(Float)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships linking back to the parent tables
-    user = relationship("User", back_populates="results")
-    patient = relationship("Patient", back_populates="results")
+    # Doctor confirmation fields (added for clinical workflow)
+    confirmed_label = Column(String, nullable=True)     # what doctor decides
+    pathology_grade = Column(String, nullable=True)     # I / II / III / IV
+    confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships — foreign_keys required because two FKs point to users.id
+    user      = relationship("User", foreign_keys=[user_id], back_populates="results")
+    confirmer = relationship("User", foreign_keys=[confirmed_by])
+    patient   = relationship("Patient", back_populates="results")
+    admission = relationship("Admission", back_populates="results")

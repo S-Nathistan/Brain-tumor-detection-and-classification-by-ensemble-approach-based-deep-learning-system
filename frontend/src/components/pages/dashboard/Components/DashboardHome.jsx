@@ -1,180 +1,376 @@
-import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { api } from '../../../../util';
+import { useEffect, useState } from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
+import { api } from "../../../../util";
+
+const S = {
+  page:      { display: "flex", flexDirection: "column", gap: 24 },
+  pageHead:  { display: "flex", flexDirection: "column", gap: 4 },
+  h1:        { fontSize: 22, fontWeight: 700, color: "var(--ns-text)", margin: 0 },
+  sub:       { fontSize: 13, color: "var(--ns-text-2)", margin: 0 },
+  grid2:     { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 20 },
+  grid3:     { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 20 },
+  grid32:    { display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 },
+  card:      { background: "var(--ns-surface)", borderRadius: 14, border: "1px solid var(--ns-border)", padding: "24px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" },
+  statLabel: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--ns-text-2)", marginBottom: 10 },
+  statNum:   { fontSize: 38, fontWeight: 800, color: "var(--ns-text)", lineHeight: 1 },
+  statBadge: { display: "inline-block", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20, marginTop: 10 },
+  accentBar: { width: 3, height: 20, borderRadius: 2, flexShrink: 0 },
+  logDot:    { width: 8, height: 8, borderRadius: "50%", background: "#2dd4bf", flexShrink: 0, marginTop: 5 },
+  btn:       { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", transition: "opacity 0.15s" },
+  ghost:     { background: "transparent", border: "1px solid var(--ns-border)", color: "var(--ns-text-2)", fontSize: 13, fontWeight: 600, padding: "7px 14px", borderRadius: 8, cursor: "pointer" },
+};
+
+function Skeleton({ w = "100%", h = 20, r = 6 }) {
+  return <div style={{ width: w, height: h, borderRadius: r, background: "linear-gradient(90deg,var(--ns-surface-2) 25%,var(--ns-border) 50%,var(--ns-surface-2) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.4s infinite" }} />;
+}
+
+const TUMOR_COLORS = {
+  "Glioma":      { bg: "#fef2f2", text: "#b91c1c", bar: "#ef4444" },
+  "Meningioma":  { bg: "#eff6ff", text: "#1d4ed8", bar: "#3b82f6" },
+  "Pituitary":   { bg: "#f0fdf4", text: "#15803d", bar: "#22c55e" },
+  "No Tumor":    { bg: "#f0fdfa", text: "#0d9488", bar: "#2dd4bf" },
+};
+
+const SCAN_BADGE = {
+  "No Scan":  { bg: "#f1f5f9", text: "#64748b" },
+  "Pending":  { bg: "#fef9ee", text: "#92400e" },
+  "Confirmed":{ bg: "#f0fdf4", text: "#15803d" },
+};
+const PLAN_BADGE = {
+  "No Plan":   { bg: "#f1f5f9", text: "#64748b" },
+  "Active":    { bg: "#eff6ff", text: "#1d4ed8" },
+  "Completed": { bg: "#f0fdf4", text: "#15803d" },
+  "Cancelled": { bg: "#fef2f2", text: "#b91c1c" },
+};
+const ADM_BADGE = {
+  "Not Admitted": { bg: "#f1f5f9", text: "#64748b" },
+  "Active":       { bg: "#fef9ee", text: "#92400e" },
+  "Discharged":   { bg: "#f0fdf4", text: "#15803d" },
+};
+
+function StatusBadge({ label, map }) {
+  const col = map[label] || { bg: "#f1f5f9", text: "#64748b" };
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: col.bg, color: col.text, whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+  );
+}
+
+const TH = { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ns-text-3)", padding: "0 12px 10px", whiteSpace: "nowrap" };
+const TD = { fontSize: 13, padding: "11px 12px", borderTop: "1px solid var(--ns-border)", verticalAlign: "middle" };
+
+function WorklistPanel({ worklist, loading, navigate }) {
+  return (
+    <div style={{ ...S.card, padding: "24px 0 0" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px 16px" }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ns-text)" }}>My Worklist</div>
+          <div style={{ fontSize: 12, color: "var(--ns-text-3)", marginTop: 2 }}>Recent patients — scan · plan · admission</div>
+        </div>
+        <button className="teal-btn" style={{ ...S.btn, background: "#0d9488", color: "#fff" }} onClick={() => navigate("/patients")}>
+          All Patients
+        </button>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH, paddingLeft: 28 }}>Patient</th>
+              <th style={TH}>Tumour</th>
+              <th style={TH}>Scan</th>
+              <th style={TH}>Plan</th>
+              <th style={{ ...TH, paddingRight: 28 }}>Admission</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              [1,2,3,4,5].map(i => (
+                <tr key={i}>
+                  {[140, 90, 80, 70, 80].map((w, j) => (
+                    <td key={j} style={{ ...TD, paddingLeft: j === 0 ? 28 : 12, paddingRight: j === 4 ? 28 : 12 }}>
+                      <Skeleton h={14} w={w} r={4} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : worklist.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ ...TD, textAlign: "center", padding: "32px 0", color: "var(--ns-text-3)", fontSize: 13 }}>
+                  No patients yet
+                </td>
+              </tr>
+            ) : (
+              worklist.map(row => (
+                <tr
+                  key={row.patient_id}
+                  className="log-item"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/patients/${row.patient_id}`, { state: { mode: "edit" } })}
+                >
+                  <td style={{ ...TD, paddingLeft: 28 }}>
+                    <div style={{ fontWeight: 600, color: "var(--ns-text)", fontSize: 13 }}>{row.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--ns-text-3)", marginTop: 2, fontFamily: "'DM Mono', monospace" }}>{row.hospital_id}</div>
+                  </td>
+                  <td style={TD}>
+                    <span style={{ fontSize: 12, color: "var(--ns-text-2)" }}>{row.tumour_type}</span>
+                  </td>
+                  <td style={TD}><StatusBadge label={row.scan_status} map={SCAN_BADGE} /></td>
+                  <td style={TD}><StatusBadge label={row.plan_status} map={PLAN_BADGE} /></td>
+                  <td style={{ ...TD, paddingRight: 28 }}><StatusBadge label={row.admission_status} map={ADM_BADGE} /></td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardHome() {
-  const [summary, setSummary] = useState(null);
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useOutletContext();
-  const isAdmin = user?.role === 'Admin';
+  const navigate = useNavigate();
+  const [summary, setSummary]   = useState(null);
+  const [logs, setLogs]         = useState([]);
+  const [worklist, setWorklist] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  const role     = user?.role || "";
+  const isAdmin  = ["Super Admin", "Admin"].includes(role);
+  const isSuperAdmin = role === "Super Admin";
+  const hour     = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const name = (() => {
+    const raw = user?.name?.trim() || "";
+    const withoutSalutation = raw.replace(/^(mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?)\s+/i, "").trim();
+    return withoutSalutation.split(" ")[0] || "there";
+  })();
 
   useEffect(() => {
-    let mounted = true;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const s = await api('/dashboard/summary');
-        const l = await api('/dashboard/audit-logs');
-        if (!mounted) return;
-        setSummary(s);
-        setLogs(l);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    fetchData();
-    return () => { mounted = false; };
-  }, []);
+    let live = true;
+    setLoading(true);
+    const fetches = isAdmin
+      ? [api("/dashboard/summary").catch(() => null), api("/dashboard/audit-logs").catch(() => []), Promise.resolve([])]
+      : [api("/dashboard/summary").catch(() => null), Promise.resolve([]), api("/dashboard/worklist").catch(() => [])];
+    Promise.all(fetches).then(([s, l, w]) => {
+      if (!live) return;
+      setSummary(s);
+      setLogs(Array.isArray(l) ? l.slice(0, 6) : []);
+      setWorklist(Array.isArray(w) ? w : []);
+    }).finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [isAdmin]);
+
+  const recentUploads = summary?.uploads_24h ?? 0;
+  const totalScans    = summary?.total_scans   ?? 0;
+  const tumorEntries  = summary?.tumour_breakdown ? Object.entries(summary.tumour_breakdown) : [];
+  const totalStaff    = summary?.total_staff   ?? "—";
+  const activeStaff   = summary?.active_staff  ?? "—";
 
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-0.5 border border-gray-100 flex flex-col justify-between">
-          <div>
-            <div className="text-[13px] text-gray-500 mb-5 font-light">Total Users Breakdown</div>
+    <div style={S.page}>
+      <style>{`
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.07) !important; transition: all 0.2s; }
+        .tool-btn:hover  { background: var(--ns-surface-2) !important; }
+        .teal-btn:hover  { opacity: 0.88; }
+        .log-item:hover  { background: var(--ns-bg); }
+      `}</style>
+
+      {/* Page header */}
+      <div style={S.pageHead}>
+        <h1 style={S.h1}>{greeting}, {name}</h1>
+        <p style={S.sub}>
+          {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {role}
+        </p>
+      </div>
+
+      {/* KPI row */}
+      <div style={S.grid3}>
+        {[
+          {
+            label: "Total Patients",
+            value: summary?.total_patients ?? "—",
+            badge: "Registered",
+            badgeBg: "#f0fdfa", badgeText: "#0d9488",
+            accent: "#2dd4bf",
+          },
+          {
+            label: "Active In-Hospital",
+            value: summary?.active_patients ?? "—",
+            badge: "Pending Discharge",
+            badgeBg: "#fef9ee", badgeText: "#92400e",
+            accent: "#f59e0b",
+          },
+          isAdmin ? {
+            label: "Total Staff",
+            value: totalStaff,
+            badge: "All roles",
+            badgeBg: "#f0fdf4", badgeText: "#15803d",
+            accent: "#22c55e",
+          } : {
+            label: "Total Scans Analysed",
+            value: totalScans || "—",
+            badge: "Predictions complete",
+            badgeBg: "#f0fdf4", badgeText: "#15803d",
+            accent: "#22c55e",
+          },
+          isAdmin ? {
+            label: "Active Staff",
+            value: activeStaff,
+            badge: "Currently active",
+            badgeBg: "#eff6ff", badgeText: "#1d4ed8",
+            accent: "#3b82f6",
+          } : {
+            label: "Uploads (Last 24 h)",
+            value: recentUploads,
+            badge: "MRI files",
+            badgeBg: "#eff6ff", badgeText: "#1d4ed8",
+            accent: "#3b82f6",
+          },
+        ].map(({ label, value, badge, badgeBg, badgeText, accent }) => (
+          <div key={label} className="stat-card" style={{ ...S.card, borderTop: `3px solid ${accent}` }}>
             {loading ? (
-              <div className="text-3xl font-extrabold text-[#5644ea]">—</div>
+              <>
+                <Skeleton h={11} w={100} r={4} />
+                <div style={{ marginTop: 12 }}><Skeleton h={38} w={80} r={6} /></div>
+                <div style={{ marginTop: 10 }}><Skeleton h={22} w={110} r={11} /></div>
+              </>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {summary?.total_users && Object.entries(summary.total_users).map(([role, count]) => (
-                  <div key={role} className="bg-[#f3f5fd] py-5 px-4 rounded-xl text-center">
-                    <div className="text-[22px] font-bold text-[#523bea]">{count}</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-[0.15em] mt-1">{role}</div>
+              <>
+                <div style={S.statLabel}>{label}</div>
+                <div style={S.statNum}>{value}</div>
+                <span style={{ ...S.statBadge, background: badgeBg, color: badgeText }}>{badge}</span>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Main content row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
+
+        {/* Audit log (admin) / My Worklist (clinical) */}
+        {isAdmin ? (
+          <div style={S.card}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ns-text)" }}>Recent Activity</div>
+                <div style={{ fontSize: 12, color: "var(--ns-text-3)", marginTop: 2 }}>System audit trail</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="ghost" style={S.ghost} onClick={() => {
+                  setLoading(true);
+                  api("/dashboard/audit-logs").then(d => setLogs(Array.isArray(d) ? d.slice(0, 6) : [])).finally(() => setLoading(false));
+                }}>Refresh</button>
+                <button className="teal-btn" style={{ ...S.btn, background: "#0d9488", color: "#fff" }} onClick={() => navigate("/system/audit-logs")}>View All</button>
+              </div>
+            </div>
+            {loading ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[1,2,3,4].map(i => <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><Skeleton w={8} h={8} r={4} /><div style={{ flex: 1 }}><Skeleton h={13} w="70%" r={4} /><div style={{ marginTop: 5 }}><Skeleton h={11} w="40%" r={4} /></div></div></div>)}
+              </div>
+            ) : logs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--ns-text-3)", fontSize: 13 }}>No recent activity</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                {logs.map((l, i) => (
+                  <div key={i} className="log-item" style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "12px 0", borderBottom: i < logs.length - 1 ? "1px solid var(--ns-border)" : "none", borderRadius: 6 }}>
+                    <div style={S.logDot} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: "var(--ns-text-2)", fontWeight: 500, lineHeight: 1.4 }}>{l.message || l.action}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, fontFamily: "'DM Mono', monospace" }}>
+                        {l.timestamp ? new Date(l.timestamp).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        {l.user_name ? ` · ${l.user_name}` : ""}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div className="mt-8">
-            <button className="bg-[#5644ea] text-white px-5 py-2.5 rounded-lg text-sm hover:bg-[#4233cc] transition" onClick={() => window.location.href = '/staff'}>Manage Users</button>
-          </div>
-        </div>
+        ) : (
+          <WorklistPanel worklist={worklist} loading={loading} navigate={navigate} />
+        )}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-0.5 border border-gray-100 flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-sm font-medium text-gray-500">Recent uploads (24h)</div>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+        {/* Right column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Tumour breakdown — clinical roles only */}
+          {!isAdmin && <div style={S.card}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ns-text)", marginBottom: 4 }}>AI Diagnostic Labels</div>
+            <div style={{ fontSize: 12, color: "var(--ns-text-3)", marginBottom: 16 }}>Tumour classification breakdown</div>
             {loading ? (
-              <div className="text-3xl font-extrabold text-gray-900">—</div>
-            ) : (
-              <div>
-                <div className="text-3xl font-extrabold text-gray-900">
-                  {summary?.active_sessions ? Object.values(summary.active_sessions).reduce((sum, count) => sum + count, 0) : 0}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">Results uploaded in the last 24 hours</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[1,2,3,4].map(i => <Skeleton key={i} h={32} r={6} />)}
               </div>
-            )}
-          </div>
-          <div className="mt-6">
-            {isAdmin && (
-              <button className="w-full bg-[#2563eb] text-white px-4 py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition" onClick={() => window.location.href = '/system/audit-logs'}>View Details</button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* CLINICAL SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-0.5 border border-indigo-100">
-          <div className="text-sm text-indigo-500 mb-2 font-black uppercase tracking-widest">Total Patients</div>
-          {loading ? <div className="text-3xl font-extrabold text-indigo-700">—</div> : (
-            <div className="flex items-end gap-3">
-              <div className="text-4xl font-extrabold text-slate-800">{summary?.total_patients || 0}</div>
-              <div className="text-xs text-slate-400 font-bold mb-1">Registered</div>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-0.5 border border-amber-100 relative overflow-hidden">
-          <div className="text-sm text-amber-500 mb-2 font-black uppercase tracking-widest relative z-10">Active In-Hospital</div>
-          {loading ? <div className="text-3xl font-extrabold text-amber-700">—</div> : (
-            <div className="flex items-end gap-3 relative z-10">
-              <div className="text-4xl font-extrabold text-slate-800">{summary?.active_patients || 0}</div>
-              <div className="text-xs text-amber-600 font-bold mb-1 bg-amber-50 px-2 py-0.5 rounded">Pending Discharge</div>
-            </div>
-          )}
-          <div className="absolute -bottom-4 -right-4 text-[80px] opacity-5">🏥</div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-0.5 border border-emerald-100">
-          <div className="text-sm text-emerald-500 mb-2 font-black uppercase tracking-widest">Total Scans Analyzed</div>
-          {loading ? <div className="text-3xl font-extrabold text-emerald-700">—</div> : (
-            <div className="flex items-end gap-3">
-              <div className="text-4xl font-extrabold text-slate-800">{summary?.total_scans || 0}</div>
-              <div className="text-xs text-emerald-600 font-bold mb-1 bg-emerald-50 px-2 py-0.5 rounded">Predictions Complete</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-700">Recent Audit Logs</h3>
-            <button className="text-sm text-indigo-600" onClick={() => { setLoading(true); api('/dashboard/audit-logs').then(d => setLogs(d)).catch(() => { }).finally(() => setLoading(false)); }}>Refresh</button>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {loading ? (
-              <li className="text-gray-400">Loading logs…</li>
-            ) : logs.length === 0 ? (
-              <li className="text-gray-400">No recent logs</li>
+            ) : tumorEntries.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0", color: "var(--ns-text-3)", fontSize: 12 }}>No diagnostic data yet</div>
             ) : (
-              logs.map((l, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">●</div>
-                  <div>
-                    <div className="text-sm text-gray-700">{l.message}</div>
-                    <div className="text-xs text-gray-400">{new Date(l.timestamp).toLocaleString()}</div>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-          <div className="text-center mt-4">
-            <button className="text-sm text-indigo-600">View All Logs</button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex-1">
-            <h4 className="font-semibold text-gray-700 uppercase tracking-widest text-sm mb-4">Admin Tools</h4>
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <button className="p-3 rounded-md border hover:shadow text-left text-sm text-gray-700 hover:bg-gray-50 transition font-bold" onClick={() => window.location.href = '/staff'}>Manage Users</button>
-              {isAdmin && (
-                <button className="p-3 rounded-md border hover:shadow text-left text-sm text-gray-700 hover:bg-gray-50 transition font-bold" onClick={() => window.location.href = '/system/user-roles'}>User Roles</button>
-              )}
-              <button className="p-3 rounded-md border hover:shadow text-left text-sm text-gray-700 hover:bg-gray-50 transition font-bold" onClick={() => window.location.href = '/reports/history'}>Report History</button>
-              {isAdmin && (
-                <button className="p-3 rounded-md border hover:shadow text-left text-sm text-gray-700 hover:bg-gray-50 transition font-bold" onClick={() => window.location.href = '/system/audit-logs'}>Monitor Logs</button>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-800 text-white flex-1 relative overflow-hidden">
-            <h4 className="font-black text-blue-400 uppercase tracking-widest text-sm mb-4 relative z-10">AI Diagnostic Labels</h4>
-            {loading ? <div className="text-sm font-bold opacity-50 relative z-10">Loading classifications...</div> : (
-              <div className="space-y-3 relative z-10">
-                {summary?.tumour_breakdown && Object.keys(summary.tumour_breakdown).length > 0 ? (
-                  Object.entries(summary.tumour_breakdown).map(([label, count]) => (
-                    <div key={label} className="flex justify-between items-center text-sm">
-                      <span className="font-bold tracking-tight text-slate-300">{label}</span>
-                      <span className="bg-slate-800 px-3 py-1 rounded text-white font-mono font-bold border border-slate-700">{count}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {tumorEntries.map(([label, count]) => {
+                  const col = TUMOR_COLORS[label] || { bg: "#f8fafc", text: "#475569", bar: "#94a3b8" };
+                  const pct = totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+                  return (
+                    <div key={label} style={{ background: col.bg, borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: col.text }}>{label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: col.text, fontFamily: "'DM Mono', monospace" }}>{count} <span style={{ fontWeight: 400, fontSize: 11 }}>({pct}%)</span></span>
+                      </div>
+                      <div style={{ height: 3, borderRadius: 2, background: "rgba(0,0,0,0.06)" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: col.bar, borderRadius: 2, transition: "width 0.6s ease" }} />
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-slate-400 text-sm font-bold italic">No diagnostics recorded yet.</div>
-                )}
+                  );
+                })}
               </div>
             )}
-            <div className="absolute -bottom-8 -right-8 text-[120px] opacity-10">🧠</div>
+          </div>}
+
+          {/* Quick actions */}
+          <div style={S.card}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ns-text)", marginBottom: 16 }}>Quick Actions</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { label: "Upload MRI Scan",   path: "/image/upload",         show: role !== "Admin" },
+                { label: "Add New Patient",   path: "/patients/new",          show: role !== "Admin" },
+                { label: "View Patients",     path: "/patients",              show: true },
+                { label: "Manage Staff",      path: "/staff",                 show: isAdmin },
+                { label: "Audit Logs",        path: "/system/audit-logs",     show: isAdmin },
+              ].filter(x => x.show).map(({ label, path }) => (
+                <button key={path} className="tool-btn" onClick={() => navigate(path)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--ns-bg)", border: "1px solid var(--ns-border)", borderRadius: 8, padding: "10px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "var(--ns-text-2)", textAlign: "left" }}>
+                  {label}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* User breakdown — admin only */}
+          {isAdmin && (
+            <div style={S.card}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ns-text)", marginBottom: 16 }}>Staff Breakdown</div>
+              {loading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[1,2,3].map(i => <Skeleton key={i} h={28} r={6} />)}
+                </div>
+              ) : summary?.total_users ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {Object.entries(summary.total_users).map(([role, count]) => (
+                    <div key={role} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--ns-bg)", borderRadius: 8, border: "1px solid var(--ns-border)" }}>
+                      <span style={{ fontSize: 12, color: "var(--ns-text-2)", fontWeight: 500 }}>{role}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ns-text)", fontFamily: "'DM Mono', monospace" }}>{count}</span>
+                    </div>
+                  ))}
+                  <button className="teal-btn" style={{ ...S.btn, background: "#0d9488", color: "#fff", marginTop: 8, justifyContent: "center", width: "100%" }} onClick={() => navigate("/staff")}>Manage Staff</button>
+                </div>
+              ) : (
+                <div style={{ color: "var(--ns-text-3)", fontSize: 12, textAlign: "center", padding: "12px 0" }}>No user data</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
