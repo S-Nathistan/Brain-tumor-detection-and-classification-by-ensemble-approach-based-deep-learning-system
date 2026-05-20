@@ -140,6 +140,29 @@ def update_db():
         else:
             print("  treatment_plans table not found, skipping")
 
+        # ── caretakers table ─────────────────────────────────────────────────────
+        print("Checking caretakers table…")
+        if "caretakers" not in inspect(conn).get_table_names():
+            try:
+                conn.execute(text("""
+                    CREATE TABLE caretakers (
+                        id           SERIAL PRIMARY KEY,
+                        patient_id   INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                        name         VARCHAR(100) NOT NULL,
+                        phone        VARCHAR(50) NOT NULL,
+                        relation     VARCHAR(50),
+                        created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """))
+                print("  Created caretakers table")
+            except ProgrammingError as e:
+                if _is_table_exists_error(e):
+                    print("  caretakers table already exists")
+                else:
+                    raise
+        else:
+            print("  caretakers table already exists")
+
         print("DB update complete.")
 
 

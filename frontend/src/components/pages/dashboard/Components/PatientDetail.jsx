@@ -2,6 +2,101 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { api, getCurrentUser } from "../../../../util";
 
+// ── Medication structured input ───────────────────────────────────────────────
+const EMPTY_MED = { name: '', dosage: '', morning: true, night: false, food: 'after' };
+
+function parseMeds(value) {
+  if (!value) return [{ ...EMPTY_MED }];
+  try {
+    const p = JSON.parse(value);
+    if (Array.isArray(p) && p.length) return p.map(m => ({
+      name:    m.name    || '',
+      dosage:  m.dosage  || '',
+      morning: m.times?.includes('08:00') ?? true,
+      night:   m.times?.includes('21:00') ?? false,
+      food:    m.food    || 'after',
+    }));
+  } catch {}
+  return [{ ...EMPTY_MED }];
+}
+
+function MedicationBuilder({ value, onChange }) {
+  const [meds, setMeds] = useState(() => parseMeds(value));
+  const lbl = { display:'block', fontSize:11, fontWeight:600, color:'#64748b', marginBottom:5 };
+  const inp = { width:'100%', border:'1px solid #e2e8f0', borderRadius:8, padding:'8px 11px', fontSize:13, outline:'none', boxSizing:'border-box' };
+
+  const commit = (list) => {
+    setMeds(list);
+    const out = list.filter(m => m.name.trim()).map(m => ({
+      name:   m.name.trim(),
+      dosage: m.dosage.trim(),
+      times:  [...(m.morning ? ['08:00'] : []), ...(m.night ? ['21:00'] : [])],
+      food:   m.food,
+    }));
+    onChange(JSON.stringify(out));
+  };
+
+  const setField  = (i, key, val) => commit(meds.map((m, idx) => idx === i ? { ...m, [key]: val } : m));
+  const addRow    = () => commit([...meds, { ...EMPTY_MED }]);
+  const removeRow = (i) => commit(meds.filter((_, idx) => idx !== i));
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {meds.map((med, i) => (
+        <div key={i} style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:10, padding:'11px 13px' }}>
+          <div style={{ display:'flex', gap:8, marginBottom:9 }}>
+            <div style={{ flex:2 }}>
+              <label style={lbl}>Drug Name</label>
+              <input value={med.name} onChange={e => setField(i,'name',e.target.value)} placeholder="e.g. Panadol" style={inp} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={lbl}>Dosage</label>
+              <input value={med.dosage} onChange={e => setField(i,'dosage',e.target.value)} placeholder="e.g. 500mg" style={inp} />
+            </div>
+            {meds.length > 1 && (
+              <button type="button" onClick={() => removeRow(i)}
+                style={{ alignSelf:'flex-end', marginBottom:1, background:'#fef2f2', border:'1px solid #fecaca', borderRadius:7, padding:'6px 8px', cursor:'pointer', color:'#dc2626', display:'flex', alignItems:'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              </button>
+            )}
+          </div>
+          <div style={{ display:'flex', gap:18, flexWrap:'wrap', alignItems:'flex-start' }}>
+            <div>
+              <label style={lbl}>Reminder Time</label>
+              <div style={{ display:'flex', gap:12 }}>
+                {[['morning','Morning (8 AM)'],['night','Night (9 PM)']].map(([key,label]) => (
+                  <label key={key} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#374151', fontWeight:500, cursor:'pointer' }}>
+                    <input type="checkbox" checked={med[key]} onChange={e => setField(i,key,e.target.checked)} style={{ accentColor:'#0d9488', width:13, height:13 }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={lbl}>With Food</label>
+              <div style={{ display:'flex', gap:6 }}>
+                {['before','after'].map(f => (
+                  <button key={f} type="button" onClick={() => setField(i,'food',f)} style={{
+                    padding:'4px 11px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', textTransform:'capitalize',
+                    border:      med.food === f ? '1.5px solid #0d9488' : '1px solid #e2e8f0',
+                    background:  med.food === f ? '#f0fdfa' : '#fff',
+                    color:       med.food === f ? '#0d9488' : '#64748b',
+                  }}>{f}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={addRow}
+        style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:8, border:'1.5px dashed #cbd5e1', background:'#f8fafc', color:'#64748b', fontSize:12, fontWeight:600, cursor:'pointer', width:'fit-content' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add another medication
+      </button>
+    </div>
+  );
+}
+
 function ExamSection({ label, hint, fieldName, canEdit, value, onChange }) {
   return (
     <div>
@@ -72,6 +167,11 @@ const PatientDetail = () => {
   const [expandedCheckin, setExpandedCheckin] = useState(null);
   const [monitoringSubTab, setMonitoringSubTab] = useState('checkin');
   const [planSaving, setPlanSaving] = useState(false);
+  const [caretakers, setCaretakers] = useState([]);
+  const [caretakerEdits, setCaretakerEdits] = useState({});
+  const [caretakerUpdateSaving, setCaretakerUpdateSaving] = useState(null);
+  const [newCaretaker, setNewCaretaker] = useState({ name: '', phone: '', relation: '' });
+  const [caretakerSaving, setCaretakerSaving] = useState(false);
   const [newPlanForm, setNewPlanForm] = useState({
     plan_date: new Date().toISOString().slice(0, 10),
     plan_type: 'Medication', title: '', medications: '',
@@ -88,14 +188,18 @@ const PatientDetail = () => {
       setPatient(mapped);
       setEditData({ ...mapped, discharge_date: mapped.dischargeDate, documents: [] });
 
-      const [docs, admissions, plans] = await Promise.all([
+      const [docs, admissions, plans, ctakers] = await Promise.all([
         api(`/documents/patient/${id}`),
         api(`/admissions/patient/${id}`).catch(() => []),
         api(`/treatment-plans/patient/${id}`).catch(() => []),
+        api(`/patients/${id}/caretakers`).catch(() => []),
       ]);
       setEditData(prev => ({ ...prev, documents: docs }));
       setPatientAdmissions(admissions);
       setTreatmentPlans(Array.isArray(plans) ? plans : []);
+      const ctList = Array.isArray(ctakers) ? ctakers : [];
+      setCaretakers(ctList);
+      setCaretakerEdits(Object.fromEntries(ctList.map(ct => [ct.id, { name: ct.name, phone: ct.phone, relation: ct.relation || '' }])));
     } catch (err) {
       console.error("Failed to fetch patient", err);
     } finally {
@@ -1203,6 +1307,115 @@ const PatientDetail = () => {
             </div>
           </div>
 
+          {/* Caretakers */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", borderBottom: "1px solid #e2e8f0", paddingBottom: 7, marginBottom: 12 }}>Caretakers</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {caretakers.length === 0 ? (
+                <p style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic", margin: 0 }}>No caretaker registered.</p>
+              ) : caretakers.map(ct => {
+                const draft = caretakerEdits[ct.id] || { name: ct.name, phone: ct.phone, relation: ct.relation || '' };
+                const isSaving = caretakerUpdateSaving === ct.id;
+                const canSave = draft.name.trim() && draft.phone.trim();
+                return pageMode === 'edit' ? (
+                  <div key={ct.id} style={{ border: "1px solid #ede9fe", borderRadius: 9, padding: "10px 12px", background: "#faf5ff", display: "flex", flexDirection: "column", gap: 6 }}>
+                    <input
+                      value={draft.name}
+                      onChange={e => setCaretakerEdits(p => ({ ...p, [ct.id]: { ...p[ct.id], name: e.target.value } }))}
+                      placeholder="Full name *"
+                      style={{ fontSize: 12, fontWeight: 600, padding: "4px 8px", border: "1px solid #ddd6fe", borderRadius: 6, outline: "none", fontFamily: "'DM Sans',sans-serif", color: "#3b0764" }}
+                    />
+                    <input
+                      value={draft.phone}
+                      onChange={e => setCaretakerEdits(p => ({ ...p, [ct.id]: { ...p[ct.id], phone: e.target.value } }))}
+                      placeholder="Phone *"
+                      style={{ fontSize: 12, padding: "4px 8px", border: "1px solid #ddd6fe", borderRadius: 6, outline: "none", fontFamily: "'DM Mono',monospace", color: "#7c3aed" }}
+                    />
+                    <input
+                      value={draft.relation}
+                      onChange={e => setCaretakerEdits(p => ({ ...p, [ct.id]: { ...p[ct.id], relation: e.target.value } }))}
+                      placeholder="Relation (e.g. Spouse, Parent)"
+                      style={{ fontSize: 12, padding: "4px 8px", border: "1px solid #ddd6fe", borderRadius: 6, outline: "none", fontFamily: "'DM Sans',sans-serif", color: "#94a3b8" }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        disabled={isSaving || !canSave}
+                        onClick={async () => {
+                          setCaretakerUpdateSaving(ct.id);
+                          try {
+                            const updated = await api(`/patients/${id}/caretakers/${ct.id}`, { method: 'PATCH', body: draft });
+                            setCaretakers(prev => prev.map(c => c.id === ct.id ? updated : c));
+                          } finally {
+                            setCaretakerUpdateSaving(null);
+                          }
+                        }}
+                        style={{ flex: 1, fontSize: 11, fontWeight: 700, padding: "5px 0", borderRadius: 6, background: canSave ? "#7c3aed" : "#e5e7eb", color: canSave ? "#fff" : "#9ca3af", border: "none", cursor: canSave ? "pointer" : "not-allowed" }}>
+                        {isSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Remove ${ct.name} as caretaker?`)) return;
+                          await api(`/patients/${id}/caretakers/${ct.id}`, { method: 'DELETE' });
+                          setCaretakers(prev => prev.filter(c => c.id !== ct.id));
+                        }}
+                        style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, background: "#fee2e2", color: "#b91c1c", border: "none", cursor: "pointer" }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={ct.id} style={{ padding: "8px 10px", border: "1px solid #ede9fe", borderRadius: 9, background: "#faf5ff" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#3b0764" }}>{ct.name}</div>
+                    <div style={{ fontSize: 11, color: "#7c3aed", fontFamily: "'DM Mono',monospace" }}>{ct.phone}</div>
+                    {ct.relation && <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>{ct.relation}</div>}
+                  </div>
+                );
+              })}
+
+              {pageMode === 'edit' && (
+                <div style={{ border: "1px dashed #c4b5fd", borderRadius: 9, padding: "10px 12px", background: "#fdf4ff", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "#7c3aed", letterSpacing: "0.08em" }}>Add Caretaker</div>
+                  <input
+                    placeholder="Full name *"
+                    value={newCaretaker.name}
+                    onChange={e => setNewCaretaker(p => ({ ...p, name: e.target.value }))}
+                    style={{ fontSize: 12, padding: "5px 8px", border: "1px solid #ddd6fe", borderRadius: 7, outline: "none", fontFamily: "'DM Sans',sans-serif" }}
+                  />
+                  <input
+                    placeholder="Phone number *"
+                    value={newCaretaker.phone}
+                    onChange={e => setNewCaretaker(p => ({ ...p, phone: e.target.value }))}
+                    style={{ fontSize: 12, padding: "5px 8px", border: "1px solid #ddd6fe", borderRadius: 7, outline: "none", fontFamily: "'DM Mono',monospace" }}
+                  />
+                  <input
+                    placeholder="Relation (e.g. Spouse, Parent)"
+                    value={newCaretaker.relation}
+                    onChange={e => setNewCaretaker(p => ({ ...p, relation: e.target.value }))}
+                    style={{ fontSize: 12, padding: "5px 8px", border: "1px solid #ddd6fe", borderRadius: 7, outline: "none", fontFamily: "'DM Sans',sans-serif" }}
+                  />
+                  <button
+                    disabled={caretakerSaving || !newCaretaker.name.trim() || !newCaretaker.phone.trim()}
+                    onClick={async () => {
+                      setCaretakerSaving(true);
+                      try {
+                        const saved = await api(`/patients/${id}/caretakers`, {
+                          method: 'POST',
+                          body: newCaretaker,
+                        });
+                        setCaretakers(prev => [...prev, saved]);
+                        setNewCaretaker({ name: '', phone: '', relation: '' });
+                      } finally {
+                        setCaretakerSaving(false);
+                      }
+                    }}
+                    style={{ fontSize: 12, fontWeight: 700, padding: "6px 0", borderRadius: 7, background: newCaretaker.name.trim() && newCaretaker.phone.trim() ? "#7c3aed" : "#e5e7eb", color: newCaretaker.name.trim() && newCaretaker.phone.trim() ? "#fff" : "#9ca3af", border: "none", cursor: newCaretaker.name.trim() && newCaretaker.phone.trim() ? "pointer" : "not-allowed" }}>
+                    {caretakerSaving ? "Saving…" : "+ Add Caretaker"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Document Vault */}
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: 7, marginBottom: 12 }}>
@@ -1314,9 +1527,10 @@ const PatientDetail = () => {
               {newPlanForm.plan_type === 'Medication' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>Medications</label>
-                  <textarea rows={3} value={newPlanForm.medications} onChange={e => setNewPlanForm(f => ({ ...f, medications: e.target.value }))}
-                    placeholder="Drug · Dosage · Frequency · Duration"
-                    style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 8, padding: '9px 12px', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: "'DM Sans',sans-serif", boxSizing: 'border-box' }} />
+                  <MedicationBuilder
+                    value={newPlanForm.medications}
+                    onChange={val => setNewPlanForm(f => ({ ...f, medications: val }))}
+                  />
                 </div>
               )}
               {newPlanForm.plan_type === 'Therapy' && (

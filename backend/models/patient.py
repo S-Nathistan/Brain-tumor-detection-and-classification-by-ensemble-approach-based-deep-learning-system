@@ -51,3 +51,4 @@ class Patient(Base):
     # Relationships
     results = relationship("Result", back_populates="patient", cascade="all, delete-orphan")
     admissions = relationship("Admission", back_populates="patient", cascade="all, delete-orphan", order_by="Admission.id")
+    caretakers = relationship("Caretaker", back_populates="patient", cascade="all, delete-orphan")

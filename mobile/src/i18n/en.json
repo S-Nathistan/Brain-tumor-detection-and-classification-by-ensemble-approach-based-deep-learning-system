@@ -1,1 +1,72 @@
-{}
+{
+  "language": {
+    "title": "Choose Your Language",
+    "sub": "Select your preferred language to continue",
+    "continue": "Continue →",
+    "hint": "You can change this anytime in your profile settings."
+  },
+  "login": {
+    "back": "← Back",
+    "rolePatient": "Patient",
+    "roleCaretaker": "Caretaker",
+    "patient": {
+      "title": "Welcome Back",
+      "sub": "Sign in to your patient account",
+      "idLabel": "Hospital Patient ID",
+      "idPlaceholder": "e.g. NS-00011",
+      "idHint": "Your Hospital ID is on your registration card",
+      "btn": "Sign In",
+      "loading": "Signing in…",
+      "error": "Invalid Patient ID. Please check and try again.",
+      "newNote": "New patient? Ask your nurse to register you."
+    },
+    "caretaker": {
+      "title": "Caretaker Sign In",
+      "sub": "Sign in to monitor your patient",
+      "idLabel": "Patient's Hospital ID",
+      "idPlaceholder": "e.g. NS-00011",
+      "idHint": "The Hospital ID of the patient you care for",
+      "phoneLabel": "Your Phone Number",
+      "phonePlaceholder": "e.g. +94 77 123 4567",
+      "phoneHint": "The phone number registered with the hospital",
+      "btn": "Sign In",
+      "loading": "Signing in…",
+      "error": "Details not found. Please contact the hospital.",
+      "newNote": "Not registered as a caretaker? Ask the hospital staff to add you."
+    }
+  },
+  "setup": {
+    "welcome": "Welcome",
+    "connectedTo": "You are now connected to",
+    "reminderQuestion": "When would you like your daily health reminder?",
+    "tapToChange": "tap to change",
+    "notifQuestion": "Allow notifications?",
+    "notifSub": "Important for your care — we'll remind you to check in daily",
+    "allowBtn": "Yes, Allow Notifications",
+    "notifGranted": "Notifications enabled",
+    "notifDenied": "Blocked — enable in browser settings",
+    "goHome": "Go to Home →"
+  },
+  "home": {
+    "morning": "Good Morning",
+    "afternoon": "Good Afternoon",
+    "evening": "Good Evening",
+    "caretakerViewing": "Viewing records for",
+    "hospitalId": "Hospital ID",
+    "tumourType": "Tumour Type",
+    "riskScore": "Risk Score",
+    "notClassified": "Not Classified",
+    "quickActions": "Quick Actions",
+    "report": "My Report",
+    "reportSub": "MRI results & analysis",
+    "checkin": "Daily Check-in",
+    "checkinSub": "Log your symptoms today",
+    "chat": "Chat",
+    "chatSub": "Message your care team",
+    "emergency": "Emergency",
+    "emergencySub": "Send an SOS alert",
+    "yourDoctor": "Your Consultant",
+    "noDoctor": "Not yet assigned",
+    "signOut": "Sign Out"
+  }
+}

@@ -379,7 +379,7 @@ const AddNewPatient = ({ onPatientAdded }) => {
   const [data, setData] = useState({
     name: '', hospitalId: '', age: '', years: 'Years',
     gender: '', email: '', address: '',
-    patientPhone: '', caretakerName: '', caretakerPhone: '',
+    patientPhone: '', caretakerName: '', caretakerPhone: '', caretakerRelation: '',
     from: '', occupation: '',
     symptomsNotes: '', assignedDoctor: '',
   });
@@ -494,8 +494,9 @@ const AddNewPatient = ({ onPatientAdded }) => {
       gender:          data.gender,
       email:            data.email         === "" ? null : data.email,
       phone:            data.patientPhone  === "" ? null : data.patientPhone,
-      caretaker_name:   data.caretakerName === "" ? null : data.caretakerName,
-      caretaker_phone:  data.caretakerPhone=== "" ? null : data.caretakerPhone,
+      caretaker_name:     data.caretakerName     === "" ? null : data.caretakerName,
+      caretaker_phone:    data.caretakerPhone    === "" ? null : data.caretakerPhone,
+      caretaker_relation: data.caretakerRelation === "" ? null : data.caretakerRelation,
       address:          data.address,
       from_location:   data.from,
       occupation:      data.occupation,
@@ -512,7 +513,7 @@ const AddNewPatient = ({ onPatientAdded }) => {
       alert("✅ Patient successfully registered in the database!");
       if (onPatientAdded) onPatientAdded(saved);
       const nextId = await fetchLatestId();
-      setData({ name: "", hospitalId: nextId, age: "", years: "Years", gender: "", email: "", address: "", patientPhone: "", caretakerName: "", caretakerPhone: "", from: "", occupation: "", symptomsNotes: "", assignedDoctor: "" });
+      setData({ name: "", hospitalId: nextId, age: "", years: "Years", gender: "", email: "", address: "", patientPhone: "", caretakerName: "", caretakerPhone: "", caretakerRelation: "", from: "", occupation: "", symptomsNotes: "", assignedDoctor: "" });
       setSelectedSymptoms([]);
       setErrors({});
       setStep(1);
@@ -678,12 +679,15 @@ const AddNewPatient = ({ onPatientAdded }) => {
                   <p style={{ fontSize: 11, color: "#64748b", marginBottom: 12, lineHeight: 1.5 }}>
                     Fill this section only if the patient has a caretaker or emergency contact.
                   </p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                     <Field label="Caretaker full name" style={{ marginBottom: 0 }}>
                       <input name="caretakerName" type="text" value={data.caretakerName} onChange={handleInput} placeholder="e.g. Kamal Perera" style={css.input(false)} />
                     </Field>
                     <Field label="Caretaker phone number" style={{ marginBottom: 0 }}>
                       <input name="caretakerPhone" type="tel" value={data.caretakerPhone} onChange={handleInput} placeholder="+94 XX XXX XXXX" style={css.input(false)} />
+                    </Field>
+                    <Field label="Relation" style={{ marginBottom: 0 }}>
+                      <input name="caretakerRelation" type="text" value={data.caretakerRelation} onChange={handleInput} placeholder="e.g. Spouse, Parent" style={css.input(false)} />
                     </Field>
                   </div>
                 </div>
@@ -735,8 +739,9 @@ const AddNewPatient = ({ onPatientAdded }) => {
                 ["Email",            data.email],
                 ["Patient phone",    data.patientPhone],
                 ["Address",          data.address],
-                ["Caretaker name",   data.caretakerName  || "—"],
-                ["Caretaker phone",  data.caretakerPhone || "—"],
+                ["Caretaker name",     data.caretakerName     || "—"],
+                ["Caretaker phone",    data.caretakerPhone    || "—"],
+                ["Caretaker relation", data.caretakerRelation || "—"],
               ]} />
               <RevSection icon={Icons.clipboardList} title="Clinical notes" rows={[
                 ["Symptoms", selectedSymptoms.length ? selectedSymptoms.join(", ") : "None selected"],
