@@ -54,6 +54,104 @@ const EMPTY_FORM = {
   therapy_schedule: '', surgery_details: '', notes: '', status: 'Active',
 };
 
+const EMPTY_MED = { name: '', dosage: '', morning: true, night: false, food: 'after' }
+
+function parseMeds(value) {
+  if (!value) return [{ ...EMPTY_MED }]
+  try {
+    const p = JSON.parse(value)
+    if (Array.isArray(p) && p.length) return p.map(m => ({
+      name:    m.name    || '',
+      dosage:  m.dosage  || '',
+      morning: m.times?.includes('08:00') ?? true,
+      night:   m.times?.includes('21:00') ?? false,
+      food:    m.food    || 'after',
+    }))
+  } catch {}
+  return [{ ...EMPTY_MED }]
+}
+
+function MedicationBuilder({ value, onChange }) {
+  const [meds, setMeds] = useState(() => parseMeds(value))
+
+  const commit = (list) => {
+    setMeds(list)
+    const out = list
+      .filter(m => m.name.trim())
+      .map(m => ({
+        name:   m.name.trim(),
+        dosage: m.dosage.trim(),
+        times:  [...(m.morning ? ['08:00'] : []), ...(m.night ? ['21:00'] : [])],
+        food:   m.food,
+      }))
+    onChange(JSON.stringify(out))
+  }
+
+  const setField = (i, key, val) => commit(meds.map((m, idx) => idx === i ? { ...m, [key]: val } : m))
+  const addRow   = () => commit([...meds, { ...EMPTY_MED }])
+  const removeRow = (i) => commit(meds.filter((_, idx) => idx !== i))
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      {meds.map((med, i) => (
+        <div key={i} style={{ background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:10, padding:'12px 14px' }}>
+          {/* Name + Dosage row */}
+          <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+            <div style={{ flex:2 }}>
+              <label style={lbl}>Drug Name</label>
+              <input value={med.name} onChange={e => setField(i,'name',e.target.value)}
+                placeholder="e.g. Panadol" style={inp} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={lbl}>Dosage</label>
+              <input value={med.dosage} onChange={e => setField(i,'dosage',e.target.value)}
+                placeholder="e.g. 500mg" style={inp} />
+            </div>
+            {meds.length > 1 && (
+              <button type="button" onClick={() => removeRow(i)} style={{ alignSelf:'flex-end', marginBottom:1, background:'#fef2f2', border:'1px solid #fecaca', borderRadius:7, padding:'7px 9px', cursor:'pointer', color:'#dc2626', display:'flex', alignItems:'center' }}>
+                {Ico.Trash}
+              </button>
+            )}
+          </div>
+
+          {/* Timing + Food row */}
+          <div style={{ display:'flex', gap:20, flexWrap:'wrap', alignItems:'flex-start' }}>
+            <div>
+              <label style={lbl}>Reminder Time</label>
+              <div style={{ display:'flex', gap:12 }}>
+                {[['morning','Morning (8 AM)'],['night','Night (9 PM)']].map(([key,label]) => (
+                  <label key={key} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#374151', fontWeight:500, cursor:'pointer' }}>
+                    <input type="checkbox" checked={med[key]} onChange={e => setField(i,key,e.target.checked)}
+                      style={{ accentColor:'#0d9488', width:14, height:14 }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={lbl}>With Food</label>
+              <div style={{ display:'flex', gap:6 }}>
+                {['before','after'].map(f => (
+                  <button key={f} type="button" onClick={() => setField(i,'food',f)} style={{
+                    padding:'5px 12px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', textTransform:'capitalize',
+                    border:   med.food === f ? '1.5px solid #0d9488' : '1px solid #e2e8f0',
+                    background: med.food === f ? '#f0fdfa' : '#fff',
+                    color:    med.food === f ? '#0d9488' : '#64748b',
+                  }}>{f}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <button type="button" onClick={addRow} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'1.5px dashed #cbd5e1', background:'#f8fafc', color:'#64748b', fontSize:12, fontWeight:600, cursor:'pointer', width:'fit-content' }}>
+        {Ico.Plus} Add another medication
+      </button>
+    </div>
+  )
+}
+
 function PlanForm({ patients, initial, onSave, onCancel, saving, preselectedPatient }) {
   const [form, setForm] = useState(
     initial ? { ...initial } : { ...EMPTY_FORM, patient_id: preselectedPatient?.id || '' }
@@ -125,8 +223,10 @@ function PlanForm({ patients, initial, onSave, onCancel, saving, preselectedPati
       {form.plan_type === 'Medication' && (
         <div>
           <label style={lbl}>Medications</label>
-          <textarea value={form.medications} onChange={set('medications')} rows={3}
-            placeholder={"Drug · Dosage · Frequency · Duration\ne.g. Temozolomide 150 mg/m² · oral · days 1–5 of 28-day cycle"} style={ta} />
+          <MedicationBuilder
+            value={form.medications}
+            onChange={val => setForm(f => ({ ...f, medications: val }))}
+          />
         </div>
       )}
       {form.plan_type === 'Therapy' && (

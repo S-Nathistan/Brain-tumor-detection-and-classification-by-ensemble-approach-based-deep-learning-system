@@ -140,6 +140,86 @@ def update_db():
         else:
             print("  treatment_plans table not found, skipping")
 
+        # ── caretakers table ─────────────────────────────────────────────────────
+        print("Checking caretakers table…")
+        if "caretakers" not in inspect(conn).get_table_names():
+            try:
+                conn.execute(text("""
+                    CREATE TABLE caretakers (
+                        id           SERIAL PRIMARY KEY,
+                        patient_id   INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                        name         VARCHAR(100) NOT NULL,
+                        phone        VARCHAR(50) NOT NULL,
+                        relation     VARCHAR(50),
+                        created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """))
+                print("  Created caretakers table")
+            except ProgrammingError as e:
+                if _is_table_exists_error(e):
+                    print("  caretakers table already exists")
+                else:
+                    raise
+        else:
+            print("  caretakers table already exists")
+
+        # ── checkins table ──────────────────────────────────────────────────────
+        print("Checking checkins table…")
+        if "checkins" not in inspect(conn).get_table_names():
+            try:
+                conn.execute(text("""
+                    CREATE TABLE checkins (
+                        id                    SERIAL PRIMARY KEY,
+                        patient_id            INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                        submitted_by_role     VARCHAR(20) NOT NULL DEFAULT 'patient',
+                        trigger_source        VARCHAR(100) NOT NULL DEFAULT 'Patient taps "Daily Check-in"',
+                        reminder_frequency    VARCHAR(50) NOT NULL DEFAULT 'Weekly reminder',
+                        headache              VARCHAR(50) NOT NULL,
+                        seizure               VARCHAR(50) NOT NULL,
+                        energy                VARCHAR(50) NOT NULL,
+                        nausea                VARCHAR(50) NOT NULL,
+                        medication            VARCHAR(50) NOT NULL,
+                        overall               VARCHAR(50) NOT NULL,
+                        note                  TEXT,
+                        score                 INTEGER NOT NULL,
+                        level                 VARCHAR(20) NOT NULL,
+                        emergency             BOOLEAN NOT NULL DEFAULT FALSE,
+                        created_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """))
+                print("  Created checkins table")
+            except ProgrammingError as e:
+                if _is_table_exists_error(e):
+                    print("  checkins table already exists")
+                else:
+                    raise
+        else:
+            print("  checkins table already exists")
+
+        # ── chat_messages table ────────────────────────────────────────────────
+        print("Checking chat_messages table…")
+        if "chat_messages" not in inspect(conn).get_table_names():
+            try:
+                conn.execute(text("""
+                    CREATE TABLE chat_messages (
+                        id              SERIAL PRIMARY KEY,
+                        patient_id      INTEGER NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+                        user_message    TEXT NOT NULL,
+                        bot_reply       TEXT NOT NULL,
+                        topic           VARCHAR(100),
+                        emergency       BOOLEAN NOT NULL DEFAULT FALSE,
+                        created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """))
+                print("  Created chat_messages table")
+            except ProgrammingError as e:
+                if _is_table_exists_error(e):
+                    print("  chat_messages table already exists")
+                else:
+                    raise
+        else:
+            print("  chat_messages table already exists")
+
         print("DB update complete.")
 
 

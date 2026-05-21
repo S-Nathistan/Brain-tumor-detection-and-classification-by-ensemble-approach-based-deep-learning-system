@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from pathlib import Path
 
-DATABASE_URL_PLACEHOLDER = "postgresql+psycopg2://user:admin@localhost:5432/brain_tumor"
+DATABASE_URL_PLACEHOLDER = "postgresql+psycopg2://user:najma1234@localhost:5432/brain_tumor"
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE_PATH = BACKEND_DIR / ".env"
 
