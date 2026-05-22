@@ -1,17 +1,18 @@
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { api } from "../../../../util";
+import ClinicalXAIModal from "../../../ClinicalXAIModal";
 
 const STEPS = [
   "Initializing Neural Network",
   "Preprocessing & Noise Reduction",
   "Segmenting Tumour Boundaries",
   "Calculating Risk Probability",
+  "Generating XAI Explanations",
   "Finalising Report",
 ];
 
 const UploadMRI = () => {
-  const navigate    = useNavigate();
   const location    = useLocation();
   const patient     = location.state?.patient;
 
@@ -22,6 +23,10 @@ const UploadMRI = () => {
   const [currentStep,  setCurrentStep]  = useState(0);
   const [dragActive,   setDragActive]   = useState(false);
   const [done,         setDone]         = useState(false);
+  const [xaiData,      setXaiData]      = useState(null);
+  const [xaiComplete,  setXaiComplete]  = useState(true);
+  const [resultId,     setResultId]     = useState(null);
+  const cancelPollRef = useRef(false);
 
   const handleDrag = (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -51,39 +56,96 @@ const UploadMRI = () => {
       alert("No patient selected. Please go to All Patients and click MRI next to the patient first.");
       return;
     }
+
     setIsAnalyzing(true);
-    setProgress(0); setCurrentStep(0);
+    setXaiData(null);
+    setXaiComplete(true);
+    setResultId(null);
+    setProgress(0);
+    setCurrentStep(0);
+    cancelPollRef.current = false;
 
     let p = 0;
+    let intervalCleared = false;
     const interval = setInterval(() => {
-      p += 0.7;
-      if (p < 95) {
+      p += 0.5;
+      if (p < 90) {
         setProgress(p);
-        setCurrentStep(Math.min(STEPS.length - 2, Math.floor((p / 95) * (STEPS.length - 1))));
+        setCurrentStep(Math.min(STEPS.length - 2, Math.floor((p / 90) * (STEPS.length - 1))));
       }
     }, 100);
+    const stopInterval = () => { if (!intervalCleared) { clearInterval(interval); intervalCleared = true; } };
 
     try {
+      // Step 1: upload + basic prediction
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("patient_id", patient.id);
 
-      const data = await api("/results/upload", {
+      const uploadResult = await api("/results/upload", {
         method: "POST", body: formData, isForm: true, timeoutMs: 120000,
       });
 
-      clearInterval(interval);
-      setProgress(100);
-      setCurrentStep(STEPS.length - 1);
-      setDone(true);
+      const savedResultId = uploadResult?.id;
+      setResultId(savedResultId);
 
-      setTimeout(() => {
-        navigate("/image/results", { state: { patient, scanUrl: preview, analysisResult: data } });
-      }, 1400);
+      // Step 2: start XAI background job
+      setCurrentStep(STEPS.length - 2);
+      const { job_id } = await api(`/results/${savedResultId}/xai`, {
+        method: "POST", timeoutMs: 30000,
+      });
+
+      // Step 3: poll — show modal progressively as each step completes
+      const deadline = Date.now() + 10 * 60 * 1000;
+      let modalShown = false;
+
+      while (!cancelPollRef.current && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 1000));
+        if (cancelPollRef.current) break;
+
+        const job = await api(`/results/xai/jobs/${job_id}`, { timeoutMs: 60000 });
+
+        if (job.status === "failed") throw new Error(job.error || "XAI analysis failed");
+
+        const isJobDone = job.status === "done";
+        const data = isJobDone ? job.result : job.partial;
+
+        if (data?.predicted_class) {
+          if (!modalShown) {
+            // First meaningful data — transition progress UI to complete and open modal
+            stopInterval();
+            setProgress(100);
+            setCurrentStep(STEPS.length - 1);
+            setDone(true);
+            modalShown = true;
+            setTimeout(() => {
+              if (!cancelPollRef.current) {
+                setXaiData(data);
+                setXaiComplete(isJobDone);
+                setIsAnalyzing(false);
+              }
+            }, 800);
+          } else {
+            // Update already-open modal with newer data as it arrives
+            setXaiData(data);
+            setXaiComplete(isJobDone);
+          }
+        }
+
+        if (isJobDone) return;
+      }
+
+      if (!modalShown && !cancelPollRef.current) {
+        throw new Error("XAI analysis timed out. The model is still computing on the server.");
+      }
     } catch (error) {
-      clearInterval(interval);
-      setIsAnalyzing(false); setProgress(0); setCurrentStep(0);
-      alert(`Analysis failed: ${error.message}`);
+      stopInterval();
+      setIsAnalyzing(false);
+      setProgress(0);
+      setCurrentStep(0);
+      if (!cancelPollRef.current) alert(`Analysis failed: ${error.message}`);
+    } finally {
+      stopInterval();
     }
   };
 
@@ -196,7 +258,7 @@ const UploadMRI = () => {
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Analysis Complete</div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>Redirecting to results…</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>Opening XAI report…</div>
                 </div>
               )}
 
@@ -294,7 +356,7 @@ const UploadMRI = () => {
             ) : done ? (
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Redirecting to results…
+                Opening XAI Report…
               </>
             ) : (
               <>
@@ -311,6 +373,26 @@ const UploadMRI = () => {
           )}
         </div>
       </div>
+
+      {/* Clinical XAI Modal */}
+      {xaiData && (
+        <ClinicalXAIModal
+          xaiData={xaiData}
+          isComplete={xaiComplete}
+          resultId={resultId}
+          patient={patient}
+          onClose={() => {
+            cancelPollRef.current = true;
+            setXaiData(null);
+            setXaiComplete(true);
+            setDone(false);
+            setSelectedFile(null);
+            setPreview(null);
+            setProgress(0);
+            setCurrentStep(0);
+          }}
+        />
+      )}
     </div>
   );
 };

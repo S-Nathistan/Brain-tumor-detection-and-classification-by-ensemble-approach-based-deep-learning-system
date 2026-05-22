@@ -70,7 +70,7 @@ import os
 from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import settings, CORS_ORIGINS
-from backend.core.detector import get_model_readiness
+from backend.core.detector import get_model_readiness, predict as _predict_warmup
 from backend.db.database import Base, engine
 
 # ── Import all ORM models before routers so SQLAlchemy's mapper registry
@@ -82,9 +82,48 @@ import backend.models.patient     # noqa: F401
 import backend.models.audit_log   # noqa: F401
 
 from backend.routers import auth, results, dashboard, patients, documents, treatment_plans, admissions
+from backend.core.gradcam import warmup_xai
 from backend.update_db import update_db
 
 logger = logging.getLogger(__name__)
+
+
+def _startup_warmup() -> None:
+    """Runs in a thread at startup. Loads models + pre-compiles all TF graphs.
+
+    This takes 2-3 minutes once on cold start, but ensures every subsequent
+    doctor request (upload ~2s, full XAI ~35s) is fast with no JIT penalty.
+    """
+    import tempfile, numpy as np, cv2
+    from backend.core.detector import IMG_SIZE
+
+    # Step 1: load all model weights into memory
+    get_model_readiness(load=True)
+    logger.info("Models loaded. Running TF inference warmup…")
+
+    # Step 2: warm up predict() — triggers TF inference graph compilation
+    dummy = (np.random.randint(10, 245, (IMG_SIZE, IMG_SIZE, 3)) * 0.8).astype(np.uint8)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        cv2.imwrite(tmp.name, dummy)
+        tmp_path = tmp.name
+    try:
+        _predict_warmup(tmp_path)
+        logger.info("Predict warmup done — inference graph compiled.")
+    except Exception as exc:
+        logger.warning("Predict warmup failed (non-fatal): %s", exc)
+    finally:
+        import os
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    # Step 3: warm up XAI — discovers GradCAM layers + compiles gradient graphs
+    logger.info("Running XAI warmup (GradCAM layer scan + gradient graph compile)…")
+    try:
+        warmup_xai()
+    except Exception as exc:
+        logger.warning("XAI warmup failed (non-fatal): %s", exc)
 
 
 @asynccontextmanager
@@ -93,13 +132,16 @@ async def lifespan(app: FastAPI):
         update_db()
     except Exception as exc:
         logger.warning(f"DB migration check failed: {exc}")
-    loop = asyncio.get_event_loop()
-    try:
-        logger.info("Preloading ML models at startup…")
-        await loop.run_in_executor(None, lambda: get_model_readiness(load=True))
-        logger.info("ML models ready.")
-    except Exception as exc:
-        logger.warning(f"Model preload failed: {exc}")
+    if os.getenv("WARMUP_ON_START", "false").lower() == "true":
+        loop = asyncio.get_event_loop()
+        try:
+            logger.info("Starting model + XAI warmup (runs once — doctors get fast responses after this)…")
+            await loop.run_in_executor(None, _startup_warmup)
+            logger.info("All models and XAI graphs ready. Server is fully warmed up.")
+        except Exception as exc:
+            logger.warning(f"Startup warmup failed: {exc}")
+    else:
+        logger.info("Startup warmup skipped (models load on first request). Set WARMUP_ON_START=true to enable.")
     yield
 
 
