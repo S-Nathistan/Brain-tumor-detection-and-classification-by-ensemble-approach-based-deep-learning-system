@@ -31,6 +31,7 @@ _DEFAULT_GRADCAM_LAYERS = ["proj_a", "proj_b"]
 _softmax_model: tf.keras.Model | None = None
 _grad_model_cache: dict[str, tf.keras.Model] = {}
 _gradcam_layers: list[str] | None = None
+_combined_grad_model: tf.keras.Model | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +49,30 @@ def _get_softmax_model() -> tf.keras.Model:
         _softmax_model = tf.keras.Model(inputs=km.input, outputs=softmax_out,
                                         name="WaveFusionNet_softmax")
     return _softmax_model
+
+
+def _get_combined_grad_model(
+    softmax_model: tf.keras.Model,
+    layer_a: str,
+    layer_b: str,
+) -> tf.keras.Model:
+    """Lazy-build and cache a single model outputting [conv_a, conv_b, softmax].
+
+    This lets compute_all_xai run ONE forward pass instead of three separate
+    GradientTape calls (layer A, layer B, vanilla saliency), cutting gradient
+    computation time by ~3×.
+    """
+    global _combined_grad_model
+    if _combined_grad_model is None:
+        la_out = softmax_model.get_layer(layer_a).output
+        lb_out = softmax_model.get_layer(layer_b).output
+        _combined_grad_model = tf.keras.Model(
+            inputs=softmax_model.input,
+            outputs=[la_out, lb_out, softmax_model.output],
+            name="WaveFusionNet_combined_grad",
+        )
+        logger.info("Combined grad model built for layers '%s', '%s'", layer_a, layer_b)
+    return _combined_grad_model
 
 
 def _load_gradcam_layers() -> list[str]:
@@ -194,6 +219,65 @@ def vanilla_saliency(softmax_model: tf.keras.Model,
     return saliency.astype(np.float32)
 
 
+def _process_cam(
+    conv_out: tf.Tensor,
+    grads: tf.Tensor,
+    hw: tuple[int, int],
+) -> np.ndarray:
+    """Extract a GradCAM heatmap from conv activations and their gradients."""
+    conv_out = tf.cast(conv_out, tf.float32)
+    grads    = tf.cast(grads,    tf.float32)
+    weights  = tf.reduce_mean(grads[0], axis=(0, 1))
+    cam      = tf.reduce_sum(conv_out[0] * weights, axis=-1)
+    cam      = tf.maximum(cam, 0) / (tf.reduce_max(cam) + 1e-8)
+    return cv2.resize(cam.numpy(), (hw[1], hw[0])).astype(np.float32)
+
+
+def compute_all_xai(
+    softmax_model: tf.keras.Model,
+    layer_a: str,
+    layer_b: str,
+    image: np.ndarray,
+    pred_index: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Single forward+backward pass that yields both GradCAMs and the saliency map.
+
+    Replaces three separate GradientTape calls (Grad-CAM layer A, layer B, and
+    vanilla saliency) with one pass through the combined model, then a single
+    tape.gradient call that computes all three gradients in one backward sweep.
+    Reduces gradient computation from ~3× model passes to 1×.
+
+    Returns:
+        cam_a    — GradCAM for layer_a (EfficientNetV2-S branch)
+        cam_b    — GradCAM for layer_b (DenseNet201 branch)
+        saliency — vanilla saliency map
+    """
+    img_t    = tf.cast(np.expand_dims(image, 0), tf.float32)
+    combined = _get_combined_grad_model(softmax_model, layer_a, layer_b)
+
+    with tf.GradientTape() as tape:
+        tape.watch(img_t)
+        conv_a, conv_b, preds = combined(img_t, training=False)
+        cls_out = tf.cast(preds, tf.float32)[0, pred_index]
+
+    grads = tape.gradient(cls_out, [conv_a, conv_b, img_t])
+
+    if any(g is None for g in grads):
+        raise ValueError(
+            f"compute_all_xai: zero gradient for pred_index={pred_index}. "
+            "Verify that both layers lie on the path to the softmax output."
+        )
+
+    h, w  = image.shape[:2]
+    cam_a = _process_cam(conv_a, grads[0], (h, w))
+    cam_b = _process_cam(conv_b, grads[1], (h, w))
+
+    sal = tf.reduce_max(tf.abs(tf.cast(grads[2][0], tf.float32)), axis=-1).numpy()
+    sal = (sal - sal.min()) / (sal.max() - sal.min() + 1e-8)
+
+    return cam_a, cam_b, sal.astype(np.float32)
+
+
 def localize_anatomical_region(saliency_map: np.ndarray,
                                 threshold: float = 0.5) -> tuple[str, tuple[int, int]]:
     """Map saliency centroid to clinical anatomical label (axial MRI)."""
@@ -326,33 +410,31 @@ def trust_verdict(softmax_p: np.ndarray, svm_p: np.ndarray, xgb_p: np.ndarray,
 # ---------------------------------------------------------------------------
 
 def warmup_xai() -> None:
-    """Pre-build and cache the per-layer grad models at startup.
-
-    Grad-CAM runs eager (no tf.function), so there is no graph compilation —
-    this just builds the grad models once so the first doctor request skips
-    that small construction cost.
-    """
+    """Pre-build the combined grad model at startup so the first request skips construction."""
     _load_all()
 
-    sm = _get_softmax_model()
+    sm    = _get_softmax_model()
     dummy = np.zeros((IMG_SIZE, IMG_SIZE, 3), dtype=np.float32)
+    layer_a, layer_b = _load_gradcam_layers()
 
-    # Pre-build and cache the per-layer grad models
-    for layer_name in set(_load_gradcam_layers()):
-        try:
-            compute_gradcam(sm, dummy, layer_name, 0)
-            logger.info("XAI warmup: grad model built for layer '%s'", layer_name)
-        except Exception as exc:
-            logger.warning("XAI warmup: layer '%s' warmup failed (non-fatal): %s", layer_name, exc)
-
-    # Warm Vanilla Saliency
+    # Build the combined model and run one dummy pass to cache all intermediate state.
     try:
-        vanilla_saliency(sm, dummy, 0)
-        logger.info("XAI warmup: Vanilla Saliency ready.")
+        compute_all_xai(sm, layer_a, layer_b, dummy, 0)
+        logger.info("XAI warmup: combined grad model (layers '%s', '%s') ready.", layer_a, layer_b)
     except Exception as exc:
-        logger.warning("XAI warmup: Vanilla Saliency warmup failed (non-fatal): %s", exc)
+        logger.warning("XAI warmup: combined model failed (%s) — falling back to per-layer warmup.", exc)
+        for layer_name in set([layer_a, layer_b]):
+            try:
+                compute_gradcam(sm, dummy, layer_name, 0)
+                logger.info("XAI warmup (fallback): grad model built for layer '%s'", layer_name)
+            except Exception as exc2:
+                logger.warning("XAI warmup: layer '%s' failed (non-fatal): %s", layer_name, exc2)
+        try:
+            vanilla_saliency(sm, dummy, 0)
+        except Exception as exc2:
+            logger.warning("XAI warmup: Vanilla Saliency failed (non-fatal): %s", exc2)
 
-    logger.info("XAI warmup complete — gradient graphs compiled and cached.")
+    logger.info("XAI warmup complete.")
 
 
 def predict_xai(image_path: str, progress_callback=None) -> dict:
@@ -399,72 +481,44 @@ def predict_xai(image_path: str, progress_callback=None) -> dict:
     # ── Grad-CAM layers are fixed (proj_a / proj_b) — read from config ──
     layer_a, layer_b = _load_gradcam_layers()
 
-    def _safe_gradcam(layer_name: str) -> np.ndarray:
-        try:
-            return compute_gradcam(softmax_model, img, layer_name, pred_idx)
-        except Exception as exc:
-            logger.warning("Grad-CAM on layer '%s' failed: %s. Using uniform fallback.", layer_name, exc)
-            return np.full((IMG_SIZE, IMG_SIZE), 0.5, dtype=np.float32)
-
-    # ── Step 2a: Grad-CAM on first backbone layer → emit heatmap ASAP ──
+    # ── Steps 2+3: single forward+backward pass → both GradCAMs + saliency ──
+    # compute_all_xai replaces three separate GradientTape calls, cutting
+    # gradient computation time by ~3× (3 model passes → 1).
     t2 = time.time()
-    cam_a     = _safe_gradcam(layer_a)
-    orig_b64  = _image_to_b64(img)
-    cam_a_b64 = _overlay_to_b64(img, cam_a, 0.45, cv2.COLORMAP_JET)
+    try:
+        cam_a, cam_b, ig = compute_all_xai(softmax_model, layer_a, layer_b, img, pred_idx)
+    except Exception as exc:
+        logger.warning("compute_all_xai failed (%s) — using uniform fallbacks.", exc)
+        cam_a = np.full((IMG_SIZE, IMG_SIZE), 0.5, dtype=np.float32)
+        cam_b = np.full((IMG_SIZE, IMG_SIZE), 0.5, dtype=np.float32)
+        ig    = np.full((IMG_SIZE, IMG_SIZE), 0.5, dtype=np.float32)
 
-    region_a, (cx_a, cy_a) = localize_anatomical_region(cam_a)
-    descriptors_a          = clinical_descriptors(img, cam_a)
-    logger.info("XAI step 2a (Grad-CAM layer A): %.1fs", time.time() - t2)
+    cam_avg = (cam_a + cam_b) / 2.0
+    cam_iou = cam_agreement_iou(cam_a, cam_b)
+
+    orig_b64    = _image_to_b64(img)
+    cam_a_b64   = _overlay_to_b64(img, cam_a,   0.45, cv2.COLORMAP_JET)
+    cam_b_b64   = _overlay_to_b64(img, cam_b,   0.45, cv2.COLORMAP_JET)
+    cam_avg_b64 = _overlay_to_b64(img, cam_avg, 0.45, cv2.COLORMAP_JET)
+    ig_b64      = _overlay_to_b64(img, ig,       0.55, cv2.COLORMAP_HOT)
+
+    region_desc, (cx, cy) = localize_anatomical_region(cam_avg)
+    descriptors            = clinical_descriptors(img, cam_avg)
+    logger.info("XAI steps 2+3 (combined GradCAM + Saliency): %.1fs", time.time() - t2)
 
     if progress_callback:
-        # Composite shows layer A until layer B refines it — doctor sees a heatmap now
         progress_callback({
             "images": {
                 "original":          orig_b64,
                 "gradcam_effnet":    cam_a_b64,
-                "gradcam_composite": cam_a_b64,
-            },
-            "where":              region_a,
-            "attention_centroid": {"x": cx_a, "y": cy_a},
-            "what":               descriptors_a,
-        })
-
-    # ── Step 2b: second backbone layer → refine composite + dual-path IoU ──
-    t2b         = time.time()
-    cam_b       = _safe_gradcam(layer_b)
-    cam_avg     = (cam_a + cam_b) / 2.0
-    cam_iou     = cam_agreement_iou(cam_a, cam_b)
-    cam_b_b64   = _overlay_to_b64(img, cam_b,   0.45, cv2.COLORMAP_JET)
-    cam_avg_b64 = _overlay_to_b64(img, cam_avg, 0.45, cv2.COLORMAP_JET)
-
-    region_desc, (cx, cy) = localize_anatomical_region(cam_avg)
-    descriptors            = clinical_descriptors(img, cam_avg)
-    logger.info("XAI step 2b (Grad-CAM layer B + composite): %.1fs", time.time() - t2b)
-
-    if progress_callback:
-        progress_callback({
-            "images": {
                 "gradcam_densenet":  cam_b_b64,
                 "gradcam_composite": cam_avg_b64,
+                "integrated_grads":  ig_b64,
             },
             "where":              region_desc,
             "attention_centroid": {"x": cx, "y": cy},
             "what":               descriptors,
         })
-
-    # ── Step 3: Vanilla Saliency (1 step) ──
-    t3 = time.time()
-    try:
-        ig = vanilla_saliency(softmax_model, img, pred_idx)
-    except Exception as exc:
-        logger.warning("Vanilla Saliency failed: %s. Using cam_avg fallback.", exc)
-        ig = cam_avg.copy()
-    logger.info("XAI step 3 (Vanilla Saliency): %.1fs", time.time() - t3)
-
-    ig_b64 = _overlay_to_b64(img, ig, 0.55, cv2.COLORMAP_HOT)
-
-    if progress_callback:
-        progress_callback({"images": {"integrated_grads": ig_b64}})
 
     # ── Step 4: Ensemble Uncertainty (0 setup passes) ──
     t4 = time.time()
