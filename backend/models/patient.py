@@ -15,7 +15,9 @@ class Patient(Base):
     email = Column(String(100))
     phone = Column(String(50))
     address = Column(String(255)) # Kept Shameeha's longer 255 limit
-    
+    from_location = Column(String(100), nullable=True)
+    occupation = Column(String(100), nullable=True)
+
     # Medical Information
     symptoms = Column(Text)
     presenting_complaint = Column(Text, nullable=True)  # doctor's formal write-up
@@ -49,3 +51,6 @@ class Patient(Base):
     # Relationships
     results = relationship("Result", back_populates="patient", cascade="all, delete-orphan")
     admissions = relationship("Admission", back_populates="patient", cascade="all, delete-orphan", order_by="Admission.id")
+    caretakers = relationship("Caretaker", back_populates="patient", cascade="all, delete-orphan")
+    checkins = relationship("CheckIn", back_populates="patient", cascade="all, delete-orphan", order_by="CheckIn.id.desc()")
+    chat_messages = relationship("ChatMessage", back_populates="patient", cascade="all, delete-orphan", order_by="ChatMessage.id.desc()")

@@ -156,6 +156,7 @@ import SetPassword from "./components/pages/SetPassword";
 import DashboardLayout from "./components/layout/Dashboard";
 import DashboardHome from "./components/pages/dashboard/Components/DashboardHome";
 import AllPatients from "./components/pages/dashboard/Components/AllPatients";
+import PatientDetail from "./components/pages/dashboard/Components/PatientDetail";
 import AddNewPatient from "./components/pages/dashboard/Components/AddNewPatient";
 import UploadMRI from "./components/pages/dashboard/Components/UploadMRI";
 import ClassificationResults from "./components/pages/dashboard/Components/ClassificationResults";
@@ -276,6 +277,7 @@ export default function App() {
 
               <Route path="patients">
                 <Route index element={<AllPatients/>}/>
+                <Route path=":id" element={<PatientDetail/>}/>
                 <Route path="new" element={
                   <RoleGuard user={user} allowedRoles={["Super Admin","Clinician","Assistant"]}>
                     <AddNewPatient/>

@@ -10,6 +10,11 @@ frontend/node_modules/
 dist/
 build/
 
+# Blockchain / Hardhat
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/
+
 # Data / Models
 backend/models/*.h5
 backend/uploads/

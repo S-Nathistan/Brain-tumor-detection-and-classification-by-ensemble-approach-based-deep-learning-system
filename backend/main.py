@@ -80,9 +80,11 @@ import backend.models.admission   # noqa: F401  ← must precede result
 import backend.models.result      # noqa: F401
 import backend.models.patient     # noqa: F401
 import backend.models.audit_log   # noqa: F401
+import backend.models.caretaker   # noqa: F401
+import backend.models.checkin     # noqa: F401
+import backend.models.chat_message # noqa: F401
 
-from backend.routers import auth, results, dashboard, patients, documents, treatment_plans, admissions
-from backend.core.gradcam import warmup_xai
+from backend.routers import auth, results, dashboard, patients, documents, treatment_plans, admissions, mobile
 from backend.update_db import update_db
 
 logger = logging.getLogger(__name__)
@@ -177,6 +179,7 @@ app.include_router(patients.router)
 app.include_router(documents.router)
 app.include_router(treatment_plans.router)
 app.include_router(admissions.router)
+app.include_router(mobile.router)
 
 @app.get("/health")
 def health():

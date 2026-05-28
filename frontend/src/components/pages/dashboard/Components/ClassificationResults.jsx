@@ -211,7 +211,7 @@ function ClassificationHistory() {
                         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
                           {r.patient_id && (
                             <button
-                              onClick={() => navigate("/patients", { state: { openPatientId: r.patient_id, activeTab: "investigation" } })}
+                              onClick={() => navigate(`/patients/${r.patient_id}`, { state: { mode: "view", activeTab: "investigation" } })}
                               style={{ fontSize: 11, fontWeight: 600, color: "#1d4ed8", background: "#eff6ff", border: "1px solid #dbeafe", padding: "5px 12px", borderRadius: 7, cursor: "pointer" }}>
                               View Patient
                             </button>
@@ -703,7 +703,7 @@ const ClassificationResults = () => {
 
             {/* Action buttons */}
             <div className="no-print" style={{ display: "flex", gap: 12, marginTop: 4 }}>
-              <button className="act-btn" onClick={() => navigate("/patients", { state: { openPatientId: patient.id, openMode: "view", activeTab: "investigation" } })}
+              <button className="act-btn" onClick={() => navigate(`/patients/${patient.id}`, { state: { mode: "view", activeTab: "investigation" } })}
                 style={{ flex: 1, padding: "13px 0", background: "#0d9488", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", boxShadow: "0 3px 14px rgba(13,148,136,0.28)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                 Return to Patient Record

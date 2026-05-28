@@ -12,11 +12,40 @@ from backend.core.audit import log_event
 from backend.core.security import get_current_active_user
 from backend.db.database import get_db
 from backend.models.patient import Patient
+from backend.models.caretaker import Caretaker
 from backend.models.user import User
 
-# IMPORTANT: I imported both PatientRead (Nirojini) and PatientResponse (Shameeha) here. 
-# You need to check your backend/schemas/patient.py file to see which one actually exists!
-from backend.schemas.patient import PatientCreate, PatientRead, PatientResponse, PatientUpdate, OCRResponse
+from backend.schemas.patient import PatientCreate, PatientRead, PatientResponse, PatientUpdate, OCRResponse, CaretakerRead
+from pydantic import BaseModel as _BaseModel
+from typing import Optional as _Optional
+from cryptography.fernet import Fernet
+from blockchain.medical_history_chain import (
+    encrypt_data, upload_to_pinata, send_hash_to_blockchain,
+    get_patient_records, fetch_and_decrypt_record, load_deployment
+)
+
+class CaretakerCreate(_BaseModel):
+    name: str
+    phone: str
+    relation: _Optional[str] = None
+
+class CaretakerUpdate(_BaseModel):
+    name: _Optional[str] = None
+    phone: _Optional[str] = None
+    relation: _Optional[str] = None
+
+class BlockchainRecordRequest(_BaseModel):
+    history_text: str
+
+class BlockchainRecordResponse(_BaseModel):
+    tx_hash: str
+    ipfs_hash: str
+    patient_id: str
+
+class BlockchainRecordsListResponse(_BaseModel):
+    patient_id: str
+    cids: list[str]
+    count: int
 
 # Add this line if you are on Windows and Tesseract is installed here:
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -78,22 +107,32 @@ def create_patient(
     db_patient = db.query(Patient).filter(Patient.hospital_id == body.hospital_id).first()
     if db_patient:
         raise HTTPException(status_code=400, detail="Patient with this Hospital ID already exists")
-    
-    new_patient = Patient(**body.model_dump())
+
+    patient_data = body.model_dump(exclude={"caretaker_name", "caretaker_phone", "caretaker_relation"})
+    new_patient = Patient(**patient_data)
     db.add(new_patient)
+    db.flush()  # get new_patient.id without committing
+
+    if body.caretaker_name and body.caretaker_name.strip():
+        db.add(Caretaker(
+            patient_id=new_patient.id,
+            name=body.caretaker_name.strip(),
+            phone=(body.caretaker_phone or "").strip(),
+            relation=body.caretaker_relation or None,
+        ))
+
     db.commit()
     db.refresh(new_patient)
-    
-    # Audit Log added by Nirojini
+
     log_event(db, "Patient Record Created", user_id=current_user.id, ip=request.client.host, details=f"Created ID: {body.hospital_id}")
-    
+
     return new_patient
 
 # Read All
 @router.get("", response_model=List[PatientResponse])
 @router.get("/", response_model=List[PatientResponse], include_in_schema=False)
 def get_all_patients(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    query = db.query(Patient).options(selectinload(Patient.admissions), selectinload(Patient.clinician))
+    query = db.query(Patient).options(selectinload(Patient.admissions), selectinload(Patient.clinician), selectinload(Patient.caretakers))
     if current_user.role == "Clinician":
         query = query.filter(Patient.assigned_doctor_id == current_user.id)
     patients = query.order_by(Patient.id.desc()).all()
@@ -114,7 +153,7 @@ def get_all_patients(db: Session = Depends(get_db), current_user: User = Depends
 # Read One
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    patient = db.query(Patient).options(selectinload(Patient.clinician)).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).options(selectinload(Patient.clinician), selectinload(Patient.caretakers)).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     obj = PatientResponse.model_validate(patient)
@@ -167,3 +206,185 @@ def delete_patient(
     
     # JSON response (Shameeha's feature)
     return {"message": "Patient deleted"}
+
+
+# ── Caretaker endpoints ───────────────────────────────────────────────────────
+
+@router.get("/{patient_id}/caretakers", response_model=List[CaretakerRead])
+def list_caretakers(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return db.query(Caretaker).filter(Caretaker.patient_id == patient_id).all()
+
+
+@router.post("/{patient_id}/caretakers", response_model=CaretakerRead, status_code=201)
+def add_caretaker(
+    patient_id: int,
+    body: CaretakerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    caretaker = Caretaker(
+        patient_id=patient_id,
+        name=body.name.strip(),
+        phone=body.phone.strip(),
+        relation=body.relation,
+    )
+    db.add(caretaker)
+    db.commit()
+    db.refresh(caretaker)
+    return caretaker
+
+
+@router.delete("/{patient_id}/caretakers/{caretaker_id}", status_code=204)
+def remove_caretaker(
+    patient_id: int,
+    caretaker_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    caretaker = db.query(Caretaker).filter(
+        Caretaker.id == caretaker_id,
+        Caretaker.patient_id == patient_id,
+    ).first()
+    if not caretaker:
+        raise HTTPException(status_code=404, detail="Caretaker not found")
+    db.delete(caretaker)
+    db.commit()
+
+
+@router.patch("/{patient_id}/caretakers/{caretaker_id}", response_model=CaretakerRead)
+def update_caretaker(
+    patient_id: int,
+    caretaker_id: int,
+    body: CaretakerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    caretaker = db.query(Caretaker).filter(
+        Caretaker.id == caretaker_id,
+        Caretaker.patient_id == patient_id,
+    ).first()
+    if not caretaker:
+        raise HTTPException(status_code=404, detail="Caretaker not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(caretaker, field, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(caretaker)
+    return caretaker
+
+
+# ── Blockchain record endpoint ────────────────────────────────────────────────
+
+@router.post("/{patient_id}/blockchain-record", response_model=BlockchainRecordResponse)
+async def add_blockchain_record(
+    patient_id: int,
+    body: BlockchainRecordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    cfg = settings
+    missing = [k for k, v in {
+        "PINATA_API_KEY": cfg.PINATA_API_KEY,
+        "PINATA_SECRET_KEY": cfg.PINATA_SECRET_KEY,
+        "ETH_PRIVATE_KEY": cfg.ETH_PRIVATE_KEY,
+        "FERNET_KEY": cfg.FERNET_KEY,
+    }.items() if not v]
+    if missing:
+        raise HTTPException(status_code=503, detail=f"Blockchain not configured. Missing: {missing}")
+
+    try:
+        contract_address, abi = load_deployment()
+        encryption_key   = cfg.FERNET_KEY.encode()
+        chain_patient_id = str(patient.hospital_id)
+
+        # Step 1 — encrypt locally
+        ciphertext = encrypt_data(body.history_text, encryption_key)
+
+        # Step 2 — pin to IPFS
+        ipfs_hash = upload_to_pinata(
+            ciphertext, chain_patient_id, cfg.PINATA_API_KEY, cfg.PINATA_SECRET_KEY
+        )
+
+        # Step 3 — anchor CID on-chain
+        receipt = send_hash_to_blockchain(
+            chain_patient_id, ipfs_hash, cfg.ETH_PRIVATE_KEY, contract_address, abi
+        )
+        tx_hash = receipt["transactionHash"].hex()
+
+        log_event(
+            db, "Blockchain Record Added",
+            user_id=current_user.id,
+            ip=request.client.host,
+            details=f"Patient {chain_patient_id} | tx: {tx_hash}",
+        )
+
+        return BlockchainRecordResponse(
+            tx_hash    = tx_hash,
+            ipfs_hash  = ipfs_hash,
+            patient_id = chain_patient_id,
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain write failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records", response_model=BlockchainRecordsListResponse)
+def get_blockchain_records(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    try:
+        contract_address, abi = load_deployment()
+        chain_patient_id = str(patient.hospital_id)
+        cids = get_patient_records(chain_patient_id, contract_address, abi)
+        return BlockchainRecordsListResponse(
+            patient_id=chain_patient_id,
+            cids=cids,
+            count=len(cids),
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain read failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records/{cid}/decrypt")
+def decrypt_blockchain_record(
+    patient_id: int,
+    cid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if not settings.FERNET_KEY:
+        raise HTTPException(status_code=503, detail="Decryption key not configured.")
+
+    try:
+        plaintext = fetch_and_decrypt_record(cid, settings.FERNET_KEY.encode())
+        return {"cid": cid, "plaintext": plaintext}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Decryption failed: {str(e)}")

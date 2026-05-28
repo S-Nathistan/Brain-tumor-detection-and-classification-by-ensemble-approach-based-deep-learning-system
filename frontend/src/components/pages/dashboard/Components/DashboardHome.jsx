@@ -107,7 +107,7 @@ function WorklistPanel({ worklist, loading, navigate }) {
                   key={row.patient_id}
                   className="log-item"
                   style={{ cursor: "pointer" }}
-                  onClick={() => navigate("/patients", { state: { openPatientId: row.patient_id, openMode: "edit" } })}
+                  onClick={() => navigate(`/patients/${row.patient_id}`, { state: { mode: "edit" } })}
                 >
                   <td style={{ ...TD, paddingLeft: 28 }}>
                     <div style={{ fontWeight: 600, color: "var(--ns-text)", fontSize: 13 }}>{row.name}</div>

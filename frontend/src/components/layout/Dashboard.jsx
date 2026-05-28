@@ -34,6 +34,7 @@ const ROUTE_LABELS = {
   "/":                   "Dashboard Overview",
   "/patients":           "All Patients",
   "/patients/new":       "Add New Patient",
+  "/patients/:id":       "Patient Record",
   "/image/upload":       "Upload MRI",
   "/image/results":      "Classification Results",
   "/treatment-plans":    "Treatment Plans",

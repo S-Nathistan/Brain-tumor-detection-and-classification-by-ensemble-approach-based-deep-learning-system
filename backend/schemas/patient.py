@@ -2,6 +2,17 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from backend.schemas.result import ResultRead
 
+
+class CaretakerRead(BaseModel):
+    id: int
+    name: str
+    phone: str
+    relation: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class PatientBase(BaseModel):
     hospital_id: str
     name: str
@@ -10,6 +21,8 @@ class PatientBase(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    from_location: Optional[str] = None
+    occupation: Optional[str] = None
     symptoms: Optional[str] = None
     presenting_complaint: Optional[str] = None
     symptom_analysis: Optional[str] = None
@@ -33,7 +46,9 @@ class PatientBase(BaseModel):
     scan_report: Optional[str] = None       # From Nirojini
 
 class PatientCreate(PatientBase):
-    pass
+    caretaker_name: Optional[str] = None
+    caretaker_phone: Optional[str] = None
+    caretaker_relation: Optional[str] = None
 
 class PatientUpdate(BaseModel):
     name: Optional[str] = None
@@ -42,6 +57,8 @@ class PatientUpdate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    from_location: Optional[str] = None
+    occupation: Optional[str] = None
     symptoms: Optional[str] = None
     presenting_complaint: Optional[str] = None
     symptom_analysis: Optional[str] = None
@@ -66,6 +83,7 @@ class PatientUpdate(BaseModel):
 class PatientResponse(PatientBase):
     id: int
     results: List[ResultRead] = []
+    caretakers: List[CaretakerRead] = []
     assigned_doctor: Optional[str] = None       # resolved clinician name, set by router
     current_joined_date: Optional[str] = None
     current_discharge_date: Optional[str] = None
