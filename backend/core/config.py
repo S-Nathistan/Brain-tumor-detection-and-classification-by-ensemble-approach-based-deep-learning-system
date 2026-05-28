@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = str(Path(__file__).resolve().parent.parent / "uploads")
     CORS_ORIGINS: str = "http://localhost:5173"
     
+    # Blockchain / IPFS settings
+    PINATA_API_KEY: str | None = None
+    PINATA_SECRET_KEY: str | None = None
+    ETH_PRIVATE_KEY: str | None = None
+    FERNET_KEY: str | None = None          # generate once: Fernet.generate_key().decode()
+
     # Email settings
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587

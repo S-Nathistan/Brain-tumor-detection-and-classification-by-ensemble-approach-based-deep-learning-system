@@ -1,0 +1,84 @@
+{
+  "contractAddress": "0xdFAa18F7066A1eCb2e7721CFFC1Ae3431d91F40C",
+  "network": "ganache",
+  "deployedAt": "2026-05-27T17:57:18.980Z",
+  "abi": [
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "RecordAdded",
+      "inputs": [
+        {
+          "type": "string",
+          "name": "patientId",
+          "indexed": true
+        },
+        {
+          "type": "string",
+          "name": "ipfsHash",
+          "indexed": false
+        },
+        {
+          "type": "uint256",
+          "name": "timestamp",
+          "indexed": false
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "addRecord",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "_patientId"
+        },
+        {
+          "type": "string",
+          "name": "_ipfsHash"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "getRecordCount",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "_patientId"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "uint256",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "getRecords",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "string",
+          "name": "_patientId"
+        }
+      ],
+      "outputs": [
+        {
+          "type": "string[]",
+          "name": ""
+        }
+      ]
+    }
+  ]
+}

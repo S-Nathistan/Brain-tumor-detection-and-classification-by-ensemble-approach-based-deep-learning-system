@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { api, getCurrentUser } from "../../../../util";
+import BlockchainRecordModal from "./BlockchainRecordModal";
+import BlockchainRecordsTab from "./BlockchainRecordsTab";
 
 // ── Medication structured input ───────────────────────────────────────────────
 const EMPTY_MED = { name: '', dosage: '', morning: true, night: false, food: 'after' };
@@ -153,6 +155,7 @@ const PatientDetail = () => {
   const [patient, setPatient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageMode, setPageMode] = useState(location.state?.mode || 'view');
+  const [blockchainOpen, setBlockchainOpen] = useState(false);
   const [editData, setEditData] = useState({});
   const [patientAdmissions, setPatientAdmissions] = useState([]);
   const [admissionLoading, setAdmissionLoading] = useState(false);
@@ -1132,6 +1135,8 @@ const PatientDetail = () => {
     );
   };
 
+  const renderBlockchainTab = () => <BlockchainRecordsTab patientId={patient.id} />;
+
   const TABS = [
     { key: 'admissions',    label: 'Admissions',    color: '#7c3aed' },
     { key: 'history',       label: 'History',       color: '#b45309' },
@@ -1139,6 +1144,7 @@ const PatientDetail = () => {
     { key: 'investigation', label: 'Investigation', color: '#0d9488' },
     { key: 'management',    label: 'Management',    color: '#1e40af' },
     { key: 'monitoring',    label: 'Monitoring',    color: '#475569' },
+    { key: 'blockchain',    label: '⛓ Records',     color: '#1d4ed8' },
   ];
 
   const fieldStyle = { width: '100%', padding: '4px 0', fontSize: 12, fontWeight: 500, background: 'transparent', border: 'none', borderBottom: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box', fontFamily: "'DM Sans',sans-serif", color: '#334155' };
@@ -1160,7 +1166,11 @@ const PatientDetail = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, fontFamily: "'DM Sans', sans-serif", height: "calc(100vh - 116px)" }}>
-      <style>{`.ns-tab-detail:hover{color:#334155!important}`}</style>
+      <style>{`.ns-tab-detail:hover{color:#334155!important} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {blockchainOpen && (
+        <BlockchainRecordModal patient={patient} onClose={() => setBlockchainOpen(false)} />
+      )}
 
       {/* Top bar: breadcrumb + mode toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
@@ -1200,6 +1210,7 @@ const PatientDetail = () => {
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={handlePrintCard} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#f1f5f9", color: "#374151", border: "1px solid #e2e8f0", cursor: "pointer" }}>Print Card</button>
           {!isAdmin && <button onClick={handleUploadClick} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#f0fdfa", color: "#0d9488", border: "1px solid #ccfbf1", cursor: "pointer" }}>Upload MRI</button>}
+          <button onClick={() => setBlockchainOpen(true)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", cursor: "pointer" }}>⛓ Save to Blockchain</button>
           <button onClick={handleNewAdmission} disabled={admissionLoading || patientAdmissions.some(a => a.status === 'Active')}
             title={patientAdmissions.some(a => a.status === 'Active') ? 'Discharge the active admission before creating a new one' : ''}
             style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: patientAdmissions.some(a => a.status === 'Active') ? "#f1f5f9" : "#f0fdf4", color: patientAdmissions.some(a => a.status === 'Active') ? "#94a3b8" : "#0d9488", border: `1px solid ${patientAdmissions.some(a => a.status === 'Active') ? "#e2e8f0" : "#bbf7d0"}`, cursor: patientAdmissions.some(a => a.status === 'Active') ? "not-allowed" : "pointer", opacity: admissionLoading ? 0.6 : 1 }}>
@@ -1229,6 +1240,7 @@ const PatientDetail = () => {
             {activeTab === 'investigation' && renderInvestigationTab()}
             {activeTab === 'management'    && renderTreatmentTab()}
             {activeTab === 'monitoring'    && renderMonitoringTab()}
+            {activeTab === 'blockchain'    && renderBlockchainTab()}
           </div>
         </div>
 

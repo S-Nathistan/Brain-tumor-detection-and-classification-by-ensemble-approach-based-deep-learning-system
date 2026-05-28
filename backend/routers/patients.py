@@ -18,6 +18,11 @@ from backend.models.user import User
 from backend.schemas.patient import PatientCreate, PatientRead, PatientResponse, PatientUpdate, OCRResponse, CaretakerRead
 from pydantic import BaseModel as _BaseModel
 from typing import Optional as _Optional
+from cryptography.fernet import Fernet
+from blockchain.medical_history_chain import (
+    encrypt_data, upload_to_pinata, send_hash_to_blockchain,
+    get_patient_records, fetch_and_decrypt_record, load_deployment
+)
 
 class CaretakerCreate(_BaseModel):
     name: str
@@ -28,6 +33,19 @@ class CaretakerUpdate(_BaseModel):
     name: _Optional[str] = None
     phone: _Optional[str] = None
     relation: _Optional[str] = None
+
+class BlockchainRecordRequest(_BaseModel):
+    history_text: str
+
+class BlockchainRecordResponse(_BaseModel):
+    tx_hash: str
+    ipfs_hash: str
+    patient_id: str
+
+class BlockchainRecordsListResponse(_BaseModel):
+    patient_id: str
+    cids: list[str]
+    count: int
 
 # Add this line if you are on Windows and Tesseract is installed here:
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -262,3 +280,111 @@ def update_caretaker(
     db.commit()
     db.refresh(caretaker)
     return caretaker
+
+
+# ── Blockchain record endpoint ────────────────────────────────────────────────
+
+@router.post("/{patient_id}/blockchain-record", response_model=BlockchainRecordResponse)
+async def add_blockchain_record(
+    patient_id: int,
+    body: BlockchainRecordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    cfg = settings
+    missing = [k for k, v in {
+        "PINATA_API_KEY": cfg.PINATA_API_KEY,
+        "PINATA_SECRET_KEY": cfg.PINATA_SECRET_KEY,
+        "ETH_PRIVATE_KEY": cfg.ETH_PRIVATE_KEY,
+        "FERNET_KEY": cfg.FERNET_KEY,
+    }.items() if not v]
+    if missing:
+        raise HTTPException(status_code=503, detail=f"Blockchain not configured. Missing: {missing}")
+
+    try:
+        contract_address, abi = load_deployment()
+        encryption_key   = cfg.FERNET_KEY.encode()
+        chain_patient_id = str(patient.hospital_id)
+
+        # Step 1 — encrypt locally
+        ciphertext = encrypt_data(body.history_text, encryption_key)
+
+        # Step 2 — pin to IPFS
+        ipfs_hash = upload_to_pinata(
+            ciphertext, chain_patient_id, cfg.PINATA_API_KEY, cfg.PINATA_SECRET_KEY
+        )
+
+        # Step 3 — anchor CID on-chain
+        receipt = send_hash_to_blockchain(
+            chain_patient_id, ipfs_hash, cfg.ETH_PRIVATE_KEY, contract_address, abi
+        )
+        tx_hash = receipt["transactionHash"].hex()
+
+        log_event(
+            db, "Blockchain Record Added",
+            user_id=current_user.id,
+            ip=request.client.host,
+            details=f"Patient {chain_patient_id} | tx: {tx_hash}",
+        )
+
+        return BlockchainRecordResponse(
+            tx_hash    = tx_hash,
+            ipfs_hash  = ipfs_hash,
+            patient_id = chain_patient_id,
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain write failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records", response_model=BlockchainRecordsListResponse)
+def get_blockchain_records(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    try:
+        contract_address, abi = load_deployment()
+        chain_patient_id = str(patient.hospital_id)
+        cids = get_patient_records(chain_patient_id, contract_address, abi)
+        return BlockchainRecordsListResponse(
+            patient_id=chain_patient_id,
+            cids=cids,
+            count=len(cids),
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain read failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records/{cid}/decrypt")
+def decrypt_blockchain_record(
+    patient_id: int,
+    cid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if not settings.FERNET_KEY:
+        raise HTTPException(status_code=503, detail="Decryption key not configured.")
+
+    try:
+        plaintext = fetch_and_decrypt_record(cid, settings.FERNET_KEY.encode())
+        return {"cid": cid, "plaintext": plaintext}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Decryption failed: {str(e)}")
