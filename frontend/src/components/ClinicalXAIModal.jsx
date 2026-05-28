@@ -257,17 +257,17 @@ export default function ClinicalXAIModal({ xaiData, isComplete = true, resultId,
             <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
               Backbone XAI Comparison — click thumbnail to inspect
             </div>
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
               {/* Main view */}
               <div style={{
-                flex: "0 0 340px", background: "#0f172a",
+                flex: 1, minWidth: 0, background: "#0f172a",
                 borderRadius: 12, overflow: "hidden",
                 border: "2px solid var(--ns-border)",
               }}>
                 <ImgOrSkeleton
                   src={activeImgSrc}
                   alt="Selected XAI view"
-                  style={{ width: "100%", display: "block", objectFit: "contain", minHeight: 200 }}
+                  style={{ width: "100%", display: "block", objectFit: "contain", minHeight: 270 }}
                 />
                 <div style={{ padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   {IMG_PANELS.find(p => p.key === activeImg)?.label}
@@ -275,7 +275,7 @@ export default function ClinicalXAIModal({ xaiData, isComplete = true, resultId,
               </div>
 
               {/* Thumbnail strip */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: 6, alignSelf: "stretch" }}>
                 {IMG_PANELS.map(({ key, label }) => {
                   const thumbSrc = images?.[key];
                   return (
@@ -284,16 +284,16 @@ export default function ClinicalXAIModal({ xaiData, isComplete = true, resultId,
                       className="img-thumb"
                       onClick={() => setActiveImg(key)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 10,
+                        flex: 1, display: "flex", alignItems: "center", gap: 10,
                         border: `2px solid ${activeImg === key ? "#0d9488" : "#e2e8f0"}`,
                         borderRadius: 10, overflow: "hidden", cursor: "pointer",
                         background: "var(--ns-surface-2)",
                         transition: "border-color 0.18s",
                       }}
                     >
-                      <div style={{ width: 64, height: 64, flexShrink: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ width: 110, alignSelf: "stretch", flexShrink: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {thumbSrc
-                          ? <img src={`data:image/png;base64,${thumbSrc}`} alt={label} style={{ width: 64, height: 64, objectFit: "cover", display: "block" }} />
+                          ? <img src={`data:image/png;base64,${thumbSrc}`} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                           : <Spinner size={20} />
                         }
                       </div>

@@ -768,12 +768,12 @@ const ClassificationResults = () => {
                   <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
                     Backbone XAI Comparison — click thumbnail to inspect
                   </div>
-                  <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                  <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
                     {/* Main view */}
-                    <div style={{ flex: "0 0 300px", background: "#0f172a", borderRadius: 12, overflow: "hidden", border: "2px solid var(--ns-border)" }}>
+                    <div style={{ flex: 1, minWidth: 0, background: "#0f172a", borderRadius: 12, overflow: "hidden", border: "2px solid var(--ns-border)" }}>
                       {xaiData.images?.[xaiActiveImg]
-                        ? <img src={`data:image/png;base64,${xaiData.images[xaiActiveImg]}`} alt="XAI view" style={{ width: "100%", display: "block", objectFit: "contain", minHeight: 180 }} />
-                        : <div style={{ minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        ? <img src={`data:image/png;base64,${xaiData.images[xaiActiveImg]}`} alt="XAI view" style={{ width: "100%", display: "block", objectFit: "contain", minHeight: 270 }} />
+                        : <div style={{ minHeight: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <div style={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid rgba(148,163,184,0.3)", borderTopColor: "#94a3b8", animation: "spin 0.9s linear infinite" }} />
                           </div>
                       }
@@ -783,13 +783,13 @@ const ClassificationResults = () => {
                     </div>
 
                     {/* Thumbnail strip */}
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: 6, alignSelf: "stretch" }}>
                       {XAI_IMG_PANELS.map(({ key, label, sub }) => (
                         <div key={key} onClick={() => setXaiActiveImg(key)}
-                          style={{ display: "flex", alignItems: "center", gap: 10, border: `2px solid ${xaiActiveImg === key ? "#0d9488" : "#e2e8f0"}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", background: "var(--ns-surface-2)", transition: "border-color 0.18s" }}>
-                          <div style={{ width: 58, height: 58, flexShrink: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, border: `2px solid ${xaiActiveImg === key ? "#0d9488" : "#e2e8f0"}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", background: "var(--ns-surface-2)", transition: "border-color 0.18s" }}>
+                          <div style={{ width: 110, alignSelf: "stretch", flexShrink: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             {xaiData.images?.[key]
-                              ? <img src={`data:image/png;base64,${xaiData.images[key]}`} alt={label} style={{ width: 58, height: 58, objectFit: "cover", display: "block" }} />
+                              ? <img src={`data:image/png;base64,${xaiData.images[key]}`} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                               : <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid rgba(148,163,184,0.3)", borderTopColor: "#94a3b8", animation: "spin 0.9s linear infinite" }} />
                             }
                           </div>
