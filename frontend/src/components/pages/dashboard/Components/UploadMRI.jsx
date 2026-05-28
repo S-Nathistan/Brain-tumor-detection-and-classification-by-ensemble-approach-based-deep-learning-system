@@ -103,7 +103,7 @@ const UploadMRI = () => {
         await new Promise(r => setTimeout(r, 1000));
         if (cancelPollRef.current) break;
 
-        const job = await api(`/results/xai/jobs/${job_id}`, { timeoutMs: 60000 });
+        const job = await api(`/results/xai/jobs/${job_id}`, { timeoutMs: 300000 });
 
         if (job.status === "failed") throw new Error(job.error || "XAI analysis failed");
 

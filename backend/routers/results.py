@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from datetime import datetime, timezone
 
-from backend.db.database import get_db
+from backend.db.database import get_db, SessionLocal
 from backend.models.result import Result
 from backend.models.admission import Admission
 from backend.schemas.result import ResultRead, ConfirmRequest
@@ -84,13 +84,22 @@ async def predict_tumour(
 # 2. XAI Endpoint — starts background job, returns job_id immediately
 # ==========================================================
 
-def _run_xai_job(job_id: str, image_path: str) -> None:
+def _run_xai_job(job_id: str, image_path: str, result_id: int) -> None:
     def _on_progress(partial_data: dict) -> None:
         xai_jobs.update_partial(job_id, partial_data)
 
     try:
         result = predict_xai(image_path, progress_callback=_on_progress)
         xai_jobs.set_result(job_id, result)
+        # Persist to DB so future requests return instantly
+        db = SessionLocal()
+        try:
+            r = db.query(Result).filter(Result.id == result_id).first()
+            if r:
+                r.xai_report = result
+                db.commit()
+        finally:
+            db.close()
     except Exception as exc:
         logger.error("XAI job %s failed: %s", job_id, exc, exc_info=True)
         xai_jobs.set_error(job_id, str(exc))
@@ -109,7 +118,7 @@ def xai_for_result(
         raise HTTPException(status_code=404, detail="Result not found")
 
     job_id = xai_jobs.create_job()
-    background_tasks.add_task(_run_xai_job, job_id, r.filename)
+    background_tasks.add_task(_run_xai_job, job_id, r.filename, result_id)
     return {"job_id": job_id, "status": "pending"}
 
 
@@ -127,6 +136,21 @@ async def get_xai_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.get("/{result_id}/xai")
+def get_stored_xai(
+    result_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Return the persisted XAI report for a result, or 404 if not yet generated."""
+    r = db.query(Result).filter(Result.id == result_id).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Result not found")
+    if not r.xai_report:
+        raise HTTPException(status_code=404, detail="XAI report not yet generated")
+    return r.xai_report
 
 
 # ==========================================================

@@ -89,10 +89,11 @@ logger = logging.getLogger(__name__)
 
 
 def _startup_warmup() -> None:
-    """Runs in a thread at startup. Loads models + pre-compiles all TF graphs.
+    """Runs in a thread at startup. Loads models + compiles all TF graphs via @tf.function.
 
-    This takes 2-3 minutes once on cold start, but ensures every subsequent
-    doctor request (upload ~2s, full XAI ~35s) is fast with no JIT penalty.
+    First run: model load + tf.function compilation can take 5-15 min (one-time cost).
+    After warmup: each XAI request runs the compiled graph — typically 30-90 s instead
+    of 4-5 min in eager mode.  Set SKIP_WARMUP=true in .env to disable (dev only).
     """
     import tempfile, numpy as np, cv2
     from backend.core.detector import IMG_SIZE
@@ -132,16 +133,16 @@ async def lifespan(app: FastAPI):
         update_db()
     except Exception as exc:
         logger.warning(f"DB migration check failed: {exc}")
-    if os.getenv("WARMUP_ON_START", "false").lower() == "true":
+    if os.getenv("SKIP_WARMUP", "false").lower() != "true":
         loop = asyncio.get_event_loop()
         try:
-            logger.info("Starting model + XAI warmup (runs once — doctors get fast responses after this)…")
+            logger.info("Starting model + XAI warmup (compiles TF graphs once — fast responses after this)…")
             await loop.run_in_executor(None, _startup_warmup)
-            logger.info("All models and XAI graphs ready. Server is fully warmed up.")
+            logger.info("All models and XAI graphs compiled and ready.")
         except Exception as exc:
-            logger.warning(f"Startup warmup failed: {exc}")
+            logger.warning(f"Startup warmup failed (first request will be slow): {exc}")
     else:
-        logger.info("Startup warmup skipped (models load on first request). Set WARMUP_ON_START=true to enable.")
+        logger.info("Warmup skipped (SKIP_WARMUP=true). First XAI request will trigger tf.function compilation.")
     yield
 
 
