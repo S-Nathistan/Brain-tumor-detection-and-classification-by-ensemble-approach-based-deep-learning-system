@@ -1,0 +1,7 @@
+Method,Approach,Accuracy (%)
+Abdusalomov et al. (2023),YOLOv7 + Attention,99.5
+Rethemiotaki (2023),MobileNetV2,99.0
+Deng et al. (2020),HCNN + CRF-RRNN,98.6
+Younis et al. (2022),VGG-16 Ensemble,98.5
+Almalki et al. (2022),CNN + SVM,98.0
+WaveFusionNet (Ours),EfficientNetV2+DenseNet201+CrossAttn+Ensemble+TTA,98.69

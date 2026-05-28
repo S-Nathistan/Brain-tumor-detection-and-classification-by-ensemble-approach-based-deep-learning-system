@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, getCurrentUser } from "../../../../util";
 
@@ -63,6 +63,32 @@ function RadarChart({ data, accent = "#0d9488" }) {
     </svg>
   );
 }
+
+// ─── XAI constants ────────────────────────────────────────────────────────────
+const XAI_CLASS_COLORS = {
+  glioma:     "#e74c3c",
+  meningioma: "#3498db",
+  no_tumor:   "#2ecc71",
+  pituitary:  "#f39c12",
+};
+const XAI_CLASS_LABELS = {
+  glioma:     "Glioma",
+  meningioma: "Meningioma",
+  no_tumor:   "No Tumour",
+  pituitary:  "Pituitary",
+};
+const XAI_TRUST_COLORS = {
+  "HIGH TRUST":                                    { bg: "#dcfce7", border: "#16a34a", text: "#15803d" },
+  "MODERATE TRUST — clinical review recommended":  { bg: "#fef9c3", border: "#ca8a04", text: "#92400e" },
+  "LOW TRUST — manual review required":            { bg: "#fee2e2", border: "#dc2626", text: "#991b1b" },
+};
+const XAI_IMG_PANELS = [
+  { key: "original",          label: "Original MRI",         sub: "Preprocessed input to model" },
+  { key: "gradcam_effnet",    label: "EfficientNet GradCAM", sub: "EfficientNetV2 branch activation" },
+  { key: "gradcam_densenet",  label: "DenseNet GradCAM",     sub: "DenseNet201 branch activation" },
+  { key: "gradcam_composite", label: "Composite Overlay",    sub: "Averaged dual-path attention" },
+  { key: "integrated_grads",  label: "Saliency Map",         sub: "Pixel-level gradient saliency" },
+];
 
 // ─── History table (shown when no state passed) ───────────────────────────────
 function ClassificationHistory() {
@@ -402,7 +428,12 @@ const ClassificationResults = () => {
   const specificResult = location.state?.analysisResult;
   const localScanUrl   = location.state?.scanUrl;
 
-  const [viewMode, setViewMode] = useState("original");
+  const [viewMode,     setViewMode]     = useState("original");
+  const [xaiData,      setXaiData]      = useState(null);
+  const [xaiLoading,   setXaiLoading]   = useState(false);
+  const [xaiError,     setXaiError]     = useState(null);
+  const [xaiActiveImg, setXaiActiveImg] = useState("gradcam_composite");
+  const cancelXaiRef = useRef(false);
 
   const latestDbResult = patient?.results?.[0] ?? null;
   const activeResult   = specificResult || latestDbResult;
@@ -428,6 +459,52 @@ const ClassificationResults = () => {
 
   const bbox = { top: "28%", left: "42%", width: "22%", height: "24%" };
 
+  const startXaiJob = async (resultId) => {
+    if (!resultId) return;
+    cancelXaiRef.current = false;
+    setXaiLoading(true);
+    setXaiError(null);
+    setXaiData(null);
+    setXaiActiveImg("gradcam_composite");
+    try {
+      const { job_id } = await api(`/results/${resultId}/xai`, { method: "POST", timeoutMs: 30000 });
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (!cancelXaiRef.current && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 1500));
+        if (cancelXaiRef.current) break;
+        const job = await api(`/results/xai/jobs/${job_id}`, { timeoutMs: 300000 });
+        if (job.status === "failed") throw new Error(job.error || "XAI analysis failed");
+        const isJobDone = job.status === "done";
+        const data = isJobDone ? job.result : job.partial;
+        if (data?.predicted_class) {
+          setXaiData(data);
+          if (isJobDone) { setXaiLoading(false); return; }
+        }
+      }
+      if (!cancelXaiRef.current) throw new Error("XAI analysis timed out");
+    } catch (err) {
+      if (!cancelXaiRef.current) setXaiError(err.message || "XAI analysis failed");
+    } finally {
+      if (!cancelXaiRef.current) setXaiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const id = activeResult?.id;
+    if (!id) return;
+
+    // Try fetching persisted XAI report from DB first — instant, no recomputation
+    api(`/results/${id}/xai`)
+      .then(data => setXaiData(data))
+      .catch(() => {
+        // Not stored yet — compute and save it
+        cancelXaiRef.current = false;
+        startXaiJob(id);
+      });
+
+    return () => { cancelXaiRef.current = true; };
+  }, [activeResult?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // No state → show history table
   if (!patient) return <ClassificationHistory />;
 
@@ -436,6 +513,7 @@ const ClassificationResults = () => {
       <style>{`
         @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
         @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @media print {
           body * { visibility: hidden; }
           #printable-report, #printable-report * { visibility: visible; }
@@ -643,6 +721,209 @@ const ClassificationResults = () => {
             </div>
           </div>
         </div>
+
+        {/* ── XAI Analysis Section ── */}
+        {activeResult?.id && (
+          <div style={{ background: "var(--ns-surface)", border: "1px solid var(--ns-border)", borderRadius: 14, padding: "24px 28px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+
+            {/* Section header */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>Explainable AI</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: "var(--ns-text)" }}>XAI Analysis Report</div>
+            </div>
+
+            {/* Loading (no data yet) */}
+            {xaiLoading && !xaiData && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "32px 0", justifyContent: "center" }}>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid rgba(13,148,136,0.25)", borderTopColor: "#0d9488", animation: "spin 0.8s linear infinite" }} />
+                <span style={{ fontSize: 13, color: "var(--ns-text-2)" }}>Computing XAI analysis…</span>
+              </div>
+            )}
+
+            {/* Error */}
+            {xaiError && !xaiData && (
+              <div style={{ padding: "20px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: "#b91c1c" }}>{xaiError}</span>
+                <button onClick={() => startXaiJob(activeResult.id)}
+                  style={{ fontSize: 11, fontWeight: 600, color: "#b91c1c", background: "#fff", border: "1px solid #fecaca", borderRadius: 7, padding: "6px 14px", cursor: "pointer" }}>
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* XAI content */}
+            {xaiData && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+                {/* Still computing banner */}
+                {xaiLoading && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid rgba(148,163,184,0.3)", borderTopColor: "#94a3b8", animation: "spin 0.9s linear infinite" }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#92400e" }}>Computing saliency map &amp; uncertainty — updating automatically</span>
+                  </div>
+                )}
+
+                {/* Backbone XAI Comparison */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+                    Backbone XAI Comparison — click thumbnail to inspect
+                  </div>
+                  <div style={{ display: "flex", gap: 16, alignItems: "stretch" }}>
+                    {/* Main view */}
+                    <div style={{ flex: 1, minWidth: 0, background: "#0f172a", borderRadius: 12, overflow: "hidden", border: "2px solid var(--ns-border)" }}>
+                      {xaiData.images?.[xaiActiveImg]
+                        ? <img src={`data:image/png;base64,${xaiData.images[xaiActiveImg]}`} alt="XAI view" style={{ width: "100%", display: "block", objectFit: "contain", minHeight: 270 }} />
+                        : <div style={{ minHeight: 270, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div style={{ width: 24, height: 24, borderRadius: "50%", border: "2px solid rgba(148,163,184,0.3)", borderTopColor: "#94a3b8", animation: "spin 0.9s linear infinite" }} />
+                          </div>
+                      }
+                      <div style={{ padding: "7px 12px", fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {XAI_IMG_PANELS.find(p => p.key === xaiActiveImg)?.label}
+                      </div>
+                    </div>
+
+                    {/* Thumbnail strip */}
+                    <div style={{ flex: "0 0 260px", display: "flex", flexDirection: "column", gap: 6, alignSelf: "stretch" }}>
+                      {XAI_IMG_PANELS.map(({ key, label, sub }) => (
+                        <div key={key} onClick={() => setXaiActiveImg(key)}
+                          style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, border: `2px solid ${xaiActiveImg === key ? "#0d9488" : "#e2e8f0"}`, borderRadius: 10, overflow: "hidden", cursor: "pointer", background: "var(--ns-surface-2)", transition: "border-color 0.18s" }}>
+                          <div style={{ width: 110, alignSelf: "stretch", flexShrink: 0, background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {xaiData.images?.[key]
+                              ? <img src={`data:image/png;base64,${xaiData.images[key]}`} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              : <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid rgba(148,163,184,0.3)", borderTopColor: "#94a3b8", animation: "spin 0.9s linear infinite" }} />
+                            }
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: xaiActiveImg === key ? "#0d9488" : "var(--ns-text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+                            <div style={{ fontSize: 10, color: "var(--ns-text-3)" }}>{sub}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* WHERE + WHAT + Probabilities + Trust (2-col grid) */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+
+                  {/* Left: WHERE + WHAT */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+                    {/* WHERE */}
+                    <div style={{ background: "var(--ns-surface-2)", border: "1px solid var(--ns-border)", borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>WHERE — Anatomical Location</div>
+                      {xaiData.where
+                        ? <>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ns-text)", lineHeight: 1.5 }}>{xaiData.where}</div>
+                            {xaiData.trust && (
+                              <div style={{ marginTop: 6, fontSize: 11, color: "#0d9488" }}>
+                                Dual-path IoU: {xaiData.trust.dual_path_iou}
+                                {xaiData.trust.dual_path_iou >= 0.4 ? " — backbones agree ✓" : xaiData.trust.dual_path_iou >= 0.2 ? " — partial agreement" : " — diverge, review manually"}
+                              </div>
+                            )}
+                          </>
+                        : <div style={{ height: 14, background: "var(--ns-border)", borderRadius: 6, animation: "blink 1.5s ease-in-out infinite" }} />
+                      }
+                    </div>
+
+                    {/* WHAT */}
+                    <div style={{ background: "var(--ns-surface-2)", border: "1px solid var(--ns-border)", borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>WHAT — Clinical Findings in Hotspot</div>
+                      {xaiData.what
+                        ? xaiData.what.note
+                          ? <div style={{ fontSize: 12, color: "#92400e" }}>{xaiData.what.note}</div>
+                          : ["intensity", "texture", "margins", "asymmetry", "size"].map(k => (
+                              <div key={k} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "4px 0", borderBottom: "1px solid var(--ns-border)" }}>
+                                <span style={{ fontSize: 11, color: "var(--ns-text-3)", fontWeight: 600, minWidth: 80, flexShrink: 0, textTransform: "capitalize" }}>{k}</span>
+                                <span style={{ fontSize: 11, color: "var(--ns-text)", lineHeight: 1.4 }}>{xaiData.what[k] ?? "—"}</span>
+                              </div>
+                            ))
+                        : [90, 70, 80, 65, 50].map((w, i) => (
+                            <div key={i} style={{ height: 12, width: `${w}%`, background: "var(--ns-border)", borderRadius: 4, marginBottom: 8, animation: "blink 1.5s ease-in-out infinite" }} />
+                          ))
+                      }
+                    </div>
+                  </div>
+
+                  {/* Right: Probabilities + Trust */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+                    {/* Class Probabilities */}
+                    <div style={{ background: "var(--ns-surface-2)", border: "1px solid var(--ns-border)", borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Class Probabilities (ensemble)</div>
+                      {xaiData.probabilities
+                        ? Object.entries(xaiData.probabilities).sort(([, a], [, b]) => b - a).map(([cls, pct]) => (
+                            <div key={cls} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                              <span style={{ fontSize: 11, color: "var(--ns-text-3)", minWidth: 80, flexShrink: 0 }}>{XAI_CLASS_LABELS[cls] ?? cls}</span>
+                              <div style={{ flex: 1, height: 7, borderRadius: 4, background: "#f1f5f9", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: XAI_CLASS_COLORS[cls] ?? "#64748b", borderRadius: 4, transition: "width 0.6s ease" }} />
+                              </div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: XAI_CLASS_COLORS[cls] ?? "#64748b", minWidth: 38, textAlign: "right", fontFamily: "'DM Mono',monospace" }}>{pct.toFixed(1)}%</span>
+                            </div>
+                          ))
+                        : [1, 2, 3, 4].map(i => (
+                            <div key={i} style={{ height: 8, background: "var(--ns-border)", borderRadius: 4, marginBottom: 10, animation: "blink 1.5s ease-in-out infinite" }} />
+                          ))
+                      }
+                    </div>
+
+                    {/* Trust Components */}
+                    {(() => {
+                      const tv = xaiData.trust?.verdict;
+                      const ts = tv ? (XAI_TRUST_COLORS[tv] ?? XAI_TRUST_COLORS["MODERATE TRUST — clinical review recommended"]) : null;
+                      return (
+                        <div style={{ background: "var(--ns-surface-2)", border: `2px solid ${ts ? ts.border + "44" : "#e2e8f0"}`, borderRadius: 12, padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 6 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ns-text-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Trust Components</div>
+                            {xaiData.trust && (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'DM Mono',monospace", color: "var(--ns-text-3)" }}>{xaiData.trust.score}</span>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: ts.bg, border: `1.5px solid ${ts.border}`, color: ts.text, borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: ts.border, flexShrink: 0 }} />
+                                  {tv.split("—")[0].trim()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {xaiData.trust
+                            ? [
+                                { label: "Tri-head Agreement", value: xaiData.trust.ensemble_agreement ? "✓ Softmax / SVM / XGB agree" : "✗ Heads disagree", ok: xaiData.trust.ensemble_agreement, sub: "softmax · svm · xgboost" },
+                                { label: "Top-1 Margin",        value: `${xaiData.trust.top1_margin}`,                ok: xaiData.trust.top1_margin > 0.30,            sub: xaiData.trust.top1_margin > 0.30 ? "clear winner" : xaiData.trust.top1_margin > 0.15 ? "moderate gap" : "ambiguous" },
+                                { label: "Dual-path IoU",       value: `${xaiData.trust.dual_path_iou}`,             ok: xaiData.trust.dual_path_iou > 0.40,          sub: "EfficientNet vs DenseNet overlap" },
+                                { label: "Ensemble Entropy",    value: `${xaiData.trust.mc_entropy_normalized}`,     ok: xaiData.trust.mc_entropy_normalized < 0.25,  sub: "lower = more certain" },
+                              ].map(({ label, value, ok, sub }) => (
+                                <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
+                                  <div style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: ok ? "#dcfce7" : "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: ok ? "#15803d" : "#dc2626", marginTop: 1 }}>
+                                    {ok ? "✓" : "✗"}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ns-text)" }}>
+                                      {label} <span style={{ fontFamily: "'DM Mono',monospace", color: ok ? "#15803d" : "#dc2626" }}>{value}</span>
+                                    </div>
+                                    <div style={{ fontSize: 10, color: "var(--ns-text-3)" }}>{sub}</div>
+                                  </div>
+                                </div>
+                              ))
+                            : [1, 2, 3, 4].map(i => (
+                                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--ns-border)", flexShrink: 0, animation: "blink 1.5s ease-in-out infinite" }} />
+                                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                                    <div style={{ height: 12, width: "60%", background: "var(--ns-border)", borderRadius: 4, animation: "blink 1.5s ease-in-out infinite" }} />
+                                    <div style={{ height: 10, width: "40%", background: "var(--ns-border)", borderRadius: 4, animation: "blink 1.5s ease-in-out infinite" }} />
+                                  </div>
+                                </div>
+                              ))
+                          }
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );

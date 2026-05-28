@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from backend.db.database import Base
@@ -23,6 +24,8 @@ class Result(Base):
     pathology_grade = Column(String, nullable=True)     # I / II / III / IV
     confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
+    xai_report = Column(JSONB, nullable=True)           # persisted XAI result
 
     # Relationships — foreign_keys required because two FKs point to users.id
     user      = relationship("User", foreign_keys=[user_id], back_populates="results")

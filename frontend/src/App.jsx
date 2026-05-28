@@ -151,20 +151,6 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
-
-// Apply saved theme + density before first render
-;(function () {
-  const pref = localStorage.getItem("ns-theme") || "light";
-  const dark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const root = document.documentElement;
-  root.setAttribute("data-theme", dark ? "dark" : "light");
-  root.setAttribute("data-density", localStorage.getItem("ns-density") || "comfortable");
-  if (dark) {
-    const DARK = { "--ns-bg":"#080f1a","--ns-surface":"#0f172a","--ns-surface-2":"#1e293b","--ns-text":"#f1f5f9","--ns-text-2":"#94a3b8","--ns-text-3":"#475569","--ns-border":"#1e293b","--ns-border-2":"#334155" };
-    Object.entries(DARK).forEach(([k, v]) => root.style.setProperty(k, v));
-  }
-}());
-
 import LoginForm from "./components/pages/login/LoginForm";
 import SetPassword from "./components/pages/SetPassword";
 import DashboardLayout from "./components/layout/Dashboard";
@@ -181,6 +167,19 @@ import PersonalizedSettings from "./components/pages/dashboard/Components/Person
 // import TreatmentPlan from "./components/pages/dashboard/Components/TreatmentPlan"; // hidden — integrated into patient records
 import ResultViewer from "./components/ResultViewer";
 import { clearAuth, fetchCurrentUser, getCurrentUser, getToken } from "./util";
+
+// Apply saved theme + density before first render
+;(function () {
+  const pref = localStorage.getItem("ns-theme") || "light";
+  const dark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const root = document.documentElement;
+  root.setAttribute("data-theme", dark ? "dark" : "light");
+  root.setAttribute("data-density", localStorage.getItem("ns-density") || "comfortable");
+  if (dark) {
+    const DARK = { "--ns-bg":"#080f1a","--ns-surface":"#0f172a","--ns-surface-2":"#1e293b","--ns-text":"#f1f5f9","--ns-text-2":"#94a3b8","--ns-text-3":"#475569","--ns-border":"#1e293b","--ns-border-2":"#334155" };
+    Object.entries(DARK).forEach(([k, v]) => root.style.setProperty(k, v));
+  }
+}());
 
 function RoleGuard({ user, allowedRoles, children }) {
   if (!user) return <Navigate to="/login" replace />;

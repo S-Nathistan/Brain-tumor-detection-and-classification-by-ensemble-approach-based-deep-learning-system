@@ -13,7 +13,7 @@ pytesseract
 PyMuPDF
 pydantic-settings
 email-validator
-tensorflow
+tensorflow-cpu
 scikit-learn
 xgboost
 opencv-python-headless

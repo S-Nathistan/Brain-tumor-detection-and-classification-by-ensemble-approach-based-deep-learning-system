@@ -205,7 +205,7 @@ const css = {
     width: "100%",
     border: `1.5px solid ${hasError ? "#dc2626" : "#94a3b8"}`,
     borderRadius: 6, padding: "9px 12px", fontSize: 13,
-    color: "var(--ns-text)", background: "var(--ns-surface)",
+    color: "var(--ns-text)",
     fontFamily: "'DM Sans', sans-serif", outline: "none",
     boxSizing: "border-box", transition: "border-color 0.15s",
     background: hasError ? "#fff5f5" : "var(--ns-surface)",

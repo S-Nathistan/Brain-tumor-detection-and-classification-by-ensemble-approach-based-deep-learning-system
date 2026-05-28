@@ -129,6 +129,7 @@ def update_db():
             ("pathology_grade", "VARCHAR(10)"),
             ("confirmed_by",    "INTEGER REFERENCES users(id)"),
             ("confirmed_at",    "TIMESTAMP WITH TIME ZONE"),
+            ("xai_report",      "JSONB"),
         ])
 
         # ── treatment_plans table ────────────────────────────────────────────────
