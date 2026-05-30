@@ -12,6 +12,8 @@
     "back": "← Back",
     "rolePatient": "Patient",
     "roleCaretaker": "Caretaker",
+    "enrolledWelcome": "Welcome, {{name}}",
+    "enrolledHint": "Your Hospital ID has been pre-filled. Just tap Sign In.",
     "patient": {
       "title": "Welcome Back",
       "sub": "Sign in to your patient account",

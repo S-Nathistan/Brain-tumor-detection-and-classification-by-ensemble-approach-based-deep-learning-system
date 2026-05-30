@@ -68,16 +68,13 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!checkin) {
-      api('/mobile/checkins/latest')
-        .then(d => {
-          if (d) {
-            setCheckin(d)
-            localStorage.setItem('mobile_latest_checkin', JSON.stringify(d))
-          }
-        })
-        .catch(() => {})
-    }
+    api('/mobile/checkins/latest')
+      .then(d => {
+        setCheckin(d || null)
+        if (d) localStorage.setItem('mobile_latest_checkin', JSON.stringify(d))
+        else localStorage.removeItem('mobile_latest_checkin')
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

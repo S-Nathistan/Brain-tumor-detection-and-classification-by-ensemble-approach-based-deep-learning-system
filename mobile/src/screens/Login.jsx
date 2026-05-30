@@ -68,6 +68,7 @@ export default function Login() {
       localStorage.setItem('mobile_token', data.token)
       localStorage.setItem('mobile_patient', JSON.stringify(data.patient))
       localStorage.setItem('mobile_role', role)
+      localStorage.removeItem('mobile_latest_checkin')
       if (data.caretaker) {
         localStorage.setItem('mobile_caretaker', JSON.stringify(data.caretaker))
       } else {
@@ -155,8 +156,8 @@ export default function Login() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
             <div>
-              <div style={{ fontSize:12, fontWeight:700, color:'#0f766e' }}>Welcome, {enrolledName}</div>
-              <div style={{ fontSize:11, color:'#0d9488', marginTop:1 }}>Your Hospital ID has been pre-filled. Just tap Sign In.</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#0f766e' }}>{t('login.enrolledWelcome', { name: enrolledName })}</div>
+              <div style={{ fontSize:11, color:'#0d9488', marginTop:1 }}>{t('login.enrolledHint')}</div>
             </div>
           </div>
         ) : null}
