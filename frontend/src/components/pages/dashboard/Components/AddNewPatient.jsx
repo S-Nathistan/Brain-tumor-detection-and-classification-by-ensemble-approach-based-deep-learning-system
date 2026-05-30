@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from "../../../../util";
+import { api, API_BASE } from "../../../../util";
 
 
 const SYMPTOM_TAGS = [
@@ -453,20 +453,24 @@ const AddNewPatient = ({ onPatientAdded }) => {
     const form = new FormData();
     form.append("file", file);
     try {
-      const res = await fetch("http://127.0.0.1:8000/patients/ocr-extract", { method: "POST", body: form });
+      const res = await fetch(`${API_BASE}/patients/ocr-extract`, { method: "POST", body: form });
       if (!res.ok) throw new Error("Backend rejected the file.");
       const ext = await res.json();
       setData(prev => ({
         ...prev,
-        name:           ext.name           || prev.name,
-        age:            ext.age            || prev.age,
-        gender:         ext.gender         || prev.gender,
-        patientPhone:   ext.phone          || prev.patientPhone,
-        email:          ext.email          || prev.email,
-        from:           ext.from           || prev.from,
-        occupation:     ext.occupation     || prev.occupation,
-        assignedDoctor: ext.assignedDoctor || prev.assignedDoctor,
-        symptomsNotes:  ext.symptomsNotes  || prev.symptomsNotes,
+        name:             ext.name             || prev.name,
+        age:              ext.age              || prev.age,
+        gender:           ext.gender           || prev.gender,
+        patientPhone:     ext.phone            || prev.patientPhone,
+        email:            ext.email            || prev.email,
+        from:             ext.from_location    || prev.from,
+        occupation:       ext.occupation       || prev.occupation,
+        address:          ext.address          || prev.address,
+        assignedDoctor:   ext.assignedDoctor   || prev.assignedDoctor,
+        symptomsNotes:    ext.symptomsNotes    || prev.symptomsNotes,
+        caretakerName:    ext.caretakerName    || prev.caretakerName,
+        caretakerPhone:   ext.caretakerPhone   || prev.caretakerPhone,
+        caretakerRelation: ext.caretakerRelation || prev.caretakerRelation,
       }));
     } catch (err) {
       console.error("OCR Error:", err);

@@ -15,5 +15,8 @@ class ChatMessage(Base):
     topic = Column(String(100), nullable=True)
     emergency = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    acknowledged_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
 
     patient = relationship("Patient", back_populates="chat_messages")
+    acknowledger = relationship("User", foreign_keys=[acknowledged_by])

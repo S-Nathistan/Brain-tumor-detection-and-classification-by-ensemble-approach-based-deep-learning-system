@@ -106,3 +106,8 @@ class OCRResponse(BaseModel):
     address: str = ""
     symptomsNotes: str = ""
     assignedDoctor: str = ""
+    occupation: str = ""
+    from_location: str = ""
+    caretakerName: str = ""
+    caretakerPhone: str = ""
+    caretakerRelation: str = ""

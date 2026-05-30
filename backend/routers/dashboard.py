@@ -216,9 +216,28 @@ def patient_alerts(limit: int = 50, db: Session = Depends(get_db), current_user:
             "topic": message.topic,
             "created_at": message.created_at.isoformat() if message.created_at else None,
             "emergency": bool(message.emergency),
+            "acknowledged_by_name": message.acknowledger.name if message.acknowledger else None,
+            "acknowledged_at": message.acknowledged_at.isoformat() if message.acknowledged_at else None,
         })
 
     return alerts
+
+
+@router.patch("/patient-alerts/{alert_id}/acknowledge")
+def acknowledge_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    from datetime import datetime, timezone
+    message = db.query(ChatMessage).filter(ChatMessage.id == alert_id, ChatMessage.emergency == True).first()
+    if not message:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Alert not found")
+    message.acknowledged_by = current_user.id
+    message.acknowledged_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "id": message.id,
+        "acknowledged_by_name": current_user.name,
+        "acknowledged_at": message.acknowledged_at.isoformat(),
+    }
 
 
 @router.get("/symptom-reports/{patient_id}")
