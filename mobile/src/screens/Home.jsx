@@ -267,7 +267,7 @@ export default function Home() {
         {/* Last check-in card */}
         <div style={{ background: ls ? `linear-gradient(150deg,#fff 55%,${ls.bg} 100%)` : '#fff', border:`1.5px solid ${ls ? ls.border : '#e2e8f0'}`, borderRadius:18, padding:'14px 14px', animation:'cardPop 0.45s cubic-bezier(.34,1.56,.64,1) 0.06s both', boxShadow:`0 4px 20px ${ls ? ls.dot + '28' : 'rgba(0,0,0,0.06)'}` }}>
           {/* Header row */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent: checkin ? 'space-between' : 'center', marginBottom:12 }}>
             <div style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.12em', color:'#94a3b8' }}>
               {t('home.lastCheckin')}
             </div>
