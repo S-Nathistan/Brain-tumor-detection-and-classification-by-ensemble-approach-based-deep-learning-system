@@ -2,13 +2,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from pathlib import Path
 
-DATABASE_URL_PLACEHOLDER = "postgresql+psycopg2://user:najma1234@localhost:5432/brain_tumor"
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE_PATH = BACKEND_DIR / ".env"
 
 class Settings(BaseSettings):
 
-    DATABASE_URL: str = DATABASE_URL_PLACEHOLDER
+    DATABASE_URL: str = ""
 
     SECRET_KEY: str = "1234567890abcdef1234567890abcdef"              # use a strong random string
     ALGORITHM: str = "HS256"
@@ -32,6 +31,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ENV_FILE_PATH), extra="ignore")
 
     def model_post_init(self, __context):
+        if not self.DATABASE_URL or "<" in self.DATABASE_URL or "your-database-url" in self.DATABASE_URL:
+            raise ValueError(
+                "DATABASE_URL is not configured. Set a valid value in backend/.env, for example: "
+                "postgresql+psycopg2://postgres:<password>@localhost:5432/brain_tumor"
+            )
         # Normalize postgresql:// / postgres:// → postgresql+psycopg2:// for SQLAlchemy
         if self.DATABASE_URL and self.DATABASE_URL.startswith('postgresql://'):
             object.__setattr__(self, 'DATABASE_URL', self.DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1))
