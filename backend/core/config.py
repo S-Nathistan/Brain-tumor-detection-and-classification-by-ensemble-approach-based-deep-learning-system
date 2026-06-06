@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     UPLOAD_DIR: str = str(Path(__file__).resolve().parent.parent / "uploads")
-    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
     
     # Blockchain / IPFS settings
     PINATA_API_KEY: str | None = None
@@ -29,11 +29,20 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM_EMAIL: str = "noreply@neurosight.com"
 
+    # Enrollment
+    MOBILE_APP_URL: str = ""           # e.g. https://neurosight-mobile.vercel.app
+    TWILIO_ACCOUNT_SID: str | None = None
+    TWILIO_AUTH_TOKEN: str | None = None
+    TWILIO_PHONE_NUMBER: str | None = None
+
     model_config = SettingsConfigDict(env_file=str(ENV_FILE_PATH), extra="ignore")
 
     def model_post_init(self, __context):
-        if not self.DATABASE_URL or self.DATABASE_URL == DATABASE_URL_PLACEHOLDER:
-            raise ValueError("DATABASE_URL must be provided via environment and cannot use the placeholder value.")
+        # Normalize postgresql:// / postgres:// → postgresql+psycopg2:// for SQLAlchemy
+        if self.DATABASE_URL and self.DATABASE_URL.startswith('postgresql://'):
+            object.__setattr__(self, 'DATABASE_URL', self.DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1))
+        elif self.DATABASE_URL and self.DATABASE_URL.startswith('postgres://'):
+            object.__setattr__(self, 'DATABASE_URL', self.DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1))
 
 settings = Settings()
 

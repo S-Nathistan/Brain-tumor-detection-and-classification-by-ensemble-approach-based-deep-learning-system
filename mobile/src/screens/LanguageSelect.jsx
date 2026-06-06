@@ -21,7 +21,7 @@ export default function LanguageSelect() {
 
   function handleContinue() {
     localStorage.setItem('language', selected)
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   return (

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node \"C:/Users/Fathima Shameeha/Downloads/build_content.js\")"
+    ]
+  }
+}

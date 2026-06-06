@@ -1,16 +1,20 @@
+import json
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, exists, and_
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from backend.db.database import get_db
 from backend.models.user import User
 from backend.models.result import Result
+from backend.models.chat_message import ChatMessage
 from backend.core.security import get_current_active_user, require_admin
 # Database Models (Nirojini's addition)
 from backend.models.patient import Patient
 from backend.models.audit_log import AuditLog
 from backend.models.admission import Admission
+from backend.models.medication_log import MedicationLog
 from backend.routers.treatment_plans import TreatmentPlan
 
 # API Routers (Shameeha's addition)
@@ -184,3 +188,145 @@ def worklist(limit: int = 15, db: Session = Depends(get_db), current_user: User 
         })
 
     return rows
+
+
+@router.get("/patient-alerts")
+def patient_alerts(limit: int = 50, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    q = (
+        db.query(ChatMessage, Patient)
+        .join(Patient, ChatMessage.patient_id == Patient.id)
+        .filter(ChatMessage.emergency == True)
+    )
+
+    if current_user.role == "Clinician":
+        q = q.filter(Patient.assigned_doctor_id == current_user.id)
+
+    rows = q.order_by(ChatMessage.created_at.desc()).limit(limit).all()
+
+    alerts = []
+    for message, patient in rows:
+        alerts.append({
+            "id": message.id,
+            "patient_id": patient.id,
+            "hospital_id": patient.hospital_id,
+            "patient_name": patient.name,
+            "doctor_name": patient.clinician.name if patient.clinician else None,
+            "message": message.user_message,
+            "reply": message.bot_reply,
+            "topic": message.topic,
+            "created_at": message.created_at.isoformat() if message.created_at else None,
+            "emergency": bool(message.emergency),
+            "acknowledged_by_name": message.acknowledger.name if message.acknowledger else None,
+            "acknowledged_at": message.acknowledged_at.isoformat() if message.acknowledged_at else None,
+        })
+
+    return alerts
+
+
+@router.patch("/patient-alerts/{alert_id}/acknowledge")
+def acknowledge_alert(alert_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    from datetime import datetime, timezone
+    message = db.query(ChatMessage).filter(ChatMessage.id == alert_id, ChatMessage.emergency == True).first()
+    if not message:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Alert not found")
+    message.acknowledged_by = current_user.id
+    message.acknowledged_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "id": message.id,
+        "acknowledged_by_name": current_user.name,
+        "acknowledged_at": message.acknowledged_at.isoformat(),
+    }
+
+
+@router.get("/symptom-reports/{patient_id}")
+def symptom_reports(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    rows = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.patient_id == patient_id,
+            ChatMessage.topic == "symptom_report",
+        )
+        .order_by(ChatMessage.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "message": r.user_message,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/medication-adherence/{patient_id}")
+def medication_adherence(
+    patient_id: int,
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Return medication plans and taken logs for the last N days for a patient."""
+    since_date = (date.today() - timedelta(days=days - 1)).isoformat()
+
+    plans = (
+        db.query(TreatmentPlan)
+        .filter(
+            TreatmentPlan.patient_id == patient_id,
+            TreatmentPlan.medications.isnot(None),
+            TreatmentPlan.medications != "",
+        )
+        .order_by(TreatmentPlan.id.desc())
+        .all()
+    )
+
+    medications = []
+    for plan in plans:
+        raw = plan.medications or ""
+        try:
+            items = json.loads(raw)
+            if not isinstance(items, list):
+                continue
+        except Exception:
+            continue
+        for idx, med in enumerate(items):
+            if not isinstance(med, dict) or not med.get("name"):
+                continue
+            medications.append({
+                "plan_id":    plan.id,
+                "plan_title": plan.title or "Care Plan",
+                "med_index":  idx,
+                "name":       med.get("name", ""),
+                "dosage":     med.get("dosage", ""),
+                "slots":      med.get("times", []),
+                "food":       med.get("food", ""),
+            })
+
+    logs = (
+        db.query(MedicationLog)
+        .filter(
+            MedicationLog.patient_id == patient_id,
+            MedicationLog.taken_date >= since_date,
+        )
+        .order_by(MedicationLog.taken_date.asc())
+        .all()
+    )
+
+    return {
+        "medications": medications,
+        "logs": [
+            {
+                "plan_id":    log.plan_id,
+                "med_index":  log.med_index,
+                "slot":       log.slot,
+                "taken_date": log.taken_date,
+                "taken_at":   log.taken_at.isoformat() if log.taken_at else None,
+            }
+            for log in logs
+        ],
+        "days": days,
+        "since": since_date,
+    }

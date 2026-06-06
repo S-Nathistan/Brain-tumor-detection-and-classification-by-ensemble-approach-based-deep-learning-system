@@ -41,6 +41,7 @@ class PatientBase(BaseModel):
     assigned_doctor_id: Optional[int] = None
     joined_date: Optional[str] = None
     discharge_date: Optional[str] = "Pending"
+    next_visit_date: Optional[str] = None
     tumour_type: Optional[str] = "Not Classified"
     risk_score: Optional[str] = "0%"
     scan_report: Optional[str] = None       # From Nirojini
@@ -78,6 +79,7 @@ class PatientUpdate(BaseModel):
     examination_findings: Optional[str] = None
     muscle_power: Optional[str] = None
     reflex: Optional[str] = None
+    next_visit_date: Optional[str] = None
 
 # 1. The Main Response Schema (Includes Shameeha's MRI results link)
 class PatientResponse(PatientBase):
@@ -104,3 +106,8 @@ class OCRResponse(BaseModel):
     address: str = ""
     symptomsNotes: str = ""
     assignedDoctor: str = ""
+    occupation: str = ""
+    from_location: str = ""
+    caretakerName: str = ""
+    caretakerPhone: str = ""
+    caretakerRelation: str = ""

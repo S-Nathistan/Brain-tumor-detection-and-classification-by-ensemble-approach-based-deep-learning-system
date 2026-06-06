@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { API_BASE } from '../api'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -8,6 +9,17 @@ export default function Login() {
 
   const [role, setRole] = useState('patient')   // 'patient' | 'caretaker'
   const [patientId, setPatientId] = useState('')
+  const [enrolledName, setEnrolledName] = useState('')
+
+  useEffect(() => {
+    const prefill = localStorage.getItem('enrollment_prefill')
+    if (prefill) {
+      setPatientId(prefill)
+      setEnrolledName(localStorage.getItem('enrollment_name') || '')
+      localStorage.removeItem('enrollment_prefill')
+      localStorage.removeItem('enrollment_name')
+    }
+  }, [])
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,24 +49,32 @@ export default function Login() {
     try {
       const endpoint = role === 'patient' ? '/mobile/login' : '/mobile/caretaker-login'
       const body = role === 'patient'
-        ? { hospital_id: patientId.trim().toUpperCase() }
+        ? { hospital_id: patientId.trim().toUpperCase(), language: localStorage.getItem('language') || 'en' }
         : { hospital_id: patientId.trim().toUpperCase(), phone: phone.trim() }
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${endpoint}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        `${API_BASE}${endpoint}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' }, body: JSON.stringify(body) }
       )
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        let message = tk.error
+        try {
+          const data = await res.json()
+          message = data.detail || message
+        } catch {}
+        throw new Error(message)
+      }
       const data = await res.json()
       localStorage.setItem('mobile_token', data.token)
       localStorage.setItem('mobile_patient', JSON.stringify(data.patient))
       localStorage.setItem('mobile_role', role)
+      localStorage.removeItem('mobile_latest_checkin')
       if (data.caretaker) {
         localStorage.setItem('mobile_caretaker', JSON.stringify(data.caretaker))
       } else {
         localStorage.removeItem('mobile_caretaker')
       }
-      navigate(localStorage.getItem(`setup_done_${data.patient.hospital_id}`) ? '/home' : '/setup')
+      navigate(localStorage.getItem(`setup_done_${data.patient.hospital_id}`) ? '/home' : '/setup', { replace: true })
     } catch {
       setError(tk.error)
     } finally {
@@ -129,10 +149,23 @@ export default function Login() {
       {/* Card */}
       <div style={{ flex:1, background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-24, padding:'28px 24px', boxShadow:'0 -4px 20px rgba(0,0,0,0.06)', animation:'fadeUp 0.4s ease 0.1s both' }}>
 
+        {/* Enrollment welcome banner */}
+        {enrolledName ? (
+          <div style={{ background:'#f0fdfa', border:'1px solid #99f6e4', borderRadius:12, padding:'10px 14px', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:28, height:28, borderRadius:8, background:'#0d9488', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#0f766e' }}>{t('login.enrolledWelcome', { name: enrolledName })}</div>
+              <div style={{ fontSize:11, color:'#0d9488', marginTop:1 }}>{t('login.enrolledHint')}</div>
+            </div>
+          </div>
+        ) : null}
+
         {/* Patient ID field */}
         <div style={{ marginBottom:16 }}>
           <label style={{ display:'block', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.12em', color:'#6b7280', marginBottom:7 }}>
-            {tk.idLabel}
+            {tk.idLabel || 'Hospital ID / Patient ID'}
           </label>
           <div style={{
             display:'flex', alignItems:'center',
@@ -155,10 +188,10 @@ export default function Login() {
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder={tk.idPlaceholder}
               autoCapitalize="characters"
-              style={{ flex:1, border:'none', padding:'13px 10px', fontSize:14, fontWeight:600, color:'#111827', background:'transparent', fontFamily:"'DM Mono',monospace", letterSpacing:'0.05em' }}
+              style={{ flex:1, border:'none', padding:'13px 10px', fontSize:14, fontWeight:600, color:'#111827', background:'transparent', fontFamily:"'DM Sans',sans-serif", letterSpacing:'0.05em' }}
             />
           </div>
-          <p style={{ fontSize:11, color:'#9ca3af', marginTop:5, marginBottom:0 }}>{tk.idHint}</p>
+          <p style={{ fontSize:11, color:'#9ca3af', marginTop:5, marginBottom:0 }}>{tk.idHint || 'Enter the hospital ID from the patient record (or numeric patient ID if provided).'}</p>
         </div>
 
         {/* Phone field — caretaker only */}

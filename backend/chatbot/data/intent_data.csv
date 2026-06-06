@@ -1,0 +1,602 @@
+question,intent
+I am having a seizure what do I do,emergency
+I cannot breathe properly,emergency
+I collapsed on the floor,emergency
+I lost consciousness,emergency
+severe chest pain,emergency
+I feel like I am dying,emergency
+my symptoms are suddenly much worse,emergency
+I cannot wake up,emergency
+I am having trouble breathing,emergency
+I need an ambulance,emergency
+sudden severe headache,emergency
+I am vomiting blood,emergency
+sudden weakness in my arm or leg,emergency
+sudden vision loss,emergency
+I cannot speak suddenly,emergency
+severe confusion suddenly,emergency
+my face is drooping,emergency
+I am shaking uncontrollably,emergency
+I feel extremely dizzy and cannot stand,emergency
+sudden numbness on one side of my body,emergency
+I cannot move my legs,emergency
+severe pain that will not stop,emergency
+I think I am having a stroke,emergency
+I cannot swallow suddenly,emergency
+I am losing vision rapidly,emergency
+I had a fit just now,emergency
+my family member is unconscious,emergency
+sudden loss of balance,emergency
+I cannot hold things suddenly,emergency
+I blacked out,emergency
+I fainted and hit my head,emergency
+I feel like I am going to collapse,emergency
+my condition is getting much worse very fast,emergency
+do I need to go to emergency room now,emergency
+should I call ambulance,emergency
+I had a grand mal seizure,emergency
+my breathing stopped briefly,emergency
+I have very high fever with seizure,emergency
+I cannot control my body movements,emergency
+I am in extreme pain please help immediately,emergency
+very sudden onset of symptoms,emergency
+rapid change in my condition,emergency
+I have severe headache and repeated vomiting,emergency
+I fell down and cannot get up,emergency
+sudden paralysis on my right side,emergency
+I am choking,emergency
+I passed out for a few minutes,emergency
+my head feels like it is going to explode,emergency
+I cannot see out of one eye suddenly,emergency
+I am shaking and cannot stop,emergency
+I need emergency help right now,emergency
+my body is completely numb on one side,emergency
+I had a convulsion,emergency
+I cannot recognize where I am,emergency
+I have lost control of my bladder suddenly,emergency
+my speech is completely gone,emergency
+I cannot understand what people are saying,emergency
+I have a very high temperature and feel very confused,emergency
+I hit my head very hard and feel strange,emergency
+I am having uncontrollable muscle spasms,emergency
+I feel my heart is beating very fast and I am confused,emergency
+I cannot walk at all suddenly,emergency
+I have double vision suddenly,emergency
+my arm is completely paralyzed,emergency
+I feel a sudden very intense pressure in my head,emergency
+I am having a panic attack and cannot breathe,emergency
+I vomited three times in the last hour,emergency
+my family says I was not responding for a few minutes,emergency
+I feel extremely confused and do not know what day it is,emergency
+I have sudden ringing and then lost hearing,emergency
+I feel like everything around me is spinning and I cannot stop it,emergency
+I cannot open my eyes properly,emergency
+I have sudden loss of coordination,emergency
+I feel my leg dragging when I walk suddenly,emergency
+my tongue feels numb suddenly,emergency
+I feel I am about to have a seizure,emergency
+I have chest tightness and cannot breathe,emergency
+I feel my face is completely numb,emergency
+I had a blackout while driving,emergency
+I cannot feel my hands at all suddenly,emergency
+I feel pressure behind my eye and my vision is going,emergency
+I fell off the bed and cannot get up,emergency
+I am bleeding from my head,emergency
+I have sudden complete confusion,emergency
+my condition changed very quickly in the last hour,emergency
+I think I need to go to hospital right now,emergency
+I feel something is very wrong with my brain right now,emergency
+I cannot recognize my family members suddenly,emergency
+I have a seizure that will not stop,emergency
+I feel I am losing consciousness right now,emergency
+I have sudden loss of smell and taste and confusion,emergency
+I cannot stand up without falling,emergency
+I feel extreme pressure in my skull suddenly,emergency
+I cannot control my arms,emergency
+I have uncontrollable shaking on my right side,emergency
+I am having difficulty swallowing and breathing,emergency
+I need help immediately,emergency
+I think I am dying please help,emergency
+I feel my brain is not working,emergency
+What is glioma,diagnosis
+What does my diagnosis mean,diagnosis
+What type of brain tumor do I have,diagnosis
+What is grade 4 glioblastoma,diagnosis
+How serious is my brain tumor,diagnosis
+What is GBM,diagnosis
+What does tumor grade mean,diagnosis
+Is my tumor cancerous,diagnosis
+What is the difference between benign and malignant tumor,diagnosis
+What stage is my cancer,diagnosis
+What does the MRI result mean,diagnosis
+Can you explain my diagnosis,diagnosis
+What is meningioma,diagnosis
+What is an astrocytoma,diagnosis
+What does grade 3 tumor mean,diagnosis
+How did I get a brain tumor,diagnosis
+What causes brain tumors,diagnosis
+Is brain tumor hereditary,diagnosis
+Will my tumor grow back,diagnosis
+What is the prognosis for glioma,diagnosis
+How long do people live with glioblastoma,diagnosis
+What does tumor recurrence mean,diagnosis
+What is a secondary brain tumor,diagnosis
+Can brain tumors be cured,diagnosis
+What is MGMT methylation,diagnosis
+What does IDH mutation mean,diagnosis
+What is a low grade tumor,diagnosis
+What is a high grade tumor,diagnosis
+What does T1 and T2 mean in my MRI report,diagnosis
+What is FLAIR in my MRI,diagnosis
+I want to understand my diagnosis better,diagnosis
+My doctor said I have a brain tumor what does that mean,diagnosis
+What is the survival rate for my type of tumor,diagnosis
+What is recurrent glioma,diagnosis
+How fast does glioblastoma grow,diagnosis
+What is mass effect in brain tumor,diagnosis
+What is edema around the tumor,diagnosis
+My tumor is in the frontal lobe what does that affect,diagnosis
+What is a primary brain tumor,diagnosis
+What does biopsy result mean,diagnosis
+What is WHO grade for brain tumor,diagnosis
+I was just told I have a brain tumor,diagnosis
+Is glioma a serious condition,diagnosis
+What are the different types of brain tumors,diagnosis
+What is oligodendroglioma,diagnosis
+What does tumor enhancement mean on MRI,diagnosis
+Can you tell me about my condition,diagnosis
+What does my pathology report mean,diagnosis
+What is the difference between glioma and glioblastoma,diagnosis
+What is a grade 2 brain tumor,diagnosis
+What is a pituitary tumor,diagnosis
+What is ependymoma,diagnosis
+What is a craniopharyngioma,diagnosis
+What does ring enhancement mean on MRI,diagnosis
+What is a brainstem glioma,diagnosis
+What is diffuse intrinsic pontine glioma,diagnosis
+What is a spinal cord tumor,diagnosis
+What does midline shift mean in my report,diagnosis
+What is leptomeningeal disease,diagnosis
+What does necrosis mean in brain tumor,diagnosis
+What is a pseudoprogression,diagnosis
+What is radiation necrosis,diagnosis
+How do doctors diagnose a brain tumor,diagnosis
+What tests are done to diagnose brain tumor,diagnosis
+What is a PET scan for brain tumor,diagnosis
+What is a spectroscopy MRI,diagnosis
+What is perfusion MRI,diagnosis
+What is functional MRI for brain tumor,diagnosis
+What does my genetic testing result mean,diagnosis
+What is TERT promoter mutation,diagnosis
+What is 1p19q codeletion,diagnosis
+What does EGFR amplification mean,diagnosis
+What is H3K27M mutation,diagnosis
+What is a molecular profile of my tumor,diagnosis
+What does Ki67 index mean in my pathology,diagnosis
+What is tumor heterogeneity,diagnosis
+What does multifocal tumor mean,diagnosis
+What is a butterfly glioma,diagnosis
+What is leptomeningeal spread,diagnosis
+What does my cerebral angiogram show,diagnosis
+What is intraoperative MRI,diagnosis
+What is awake craniotomy,diagnosis
+What is a stereotactic biopsy,diagnosis
+What is a liquid biopsy for brain tumor,diagnosis
+What does CSF analysis show,diagnosis
+What is a neurosurgical consultation,diagnosis
+What does my neuro-oncology report say,diagnosis
+What is progression of my brain tumor,diagnosis
+What does stable disease mean for my tumor,diagnosis
+What is partial response in brain tumor treatment,diagnosis
+What does complete response mean,diagnosis
+Can I ask for a second pathology opinion,diagnosis
+What is the difference between primary and metastatic brain tumor,diagnosis
+What is a brain metastasis,diagnosis
+Where did my brain tumor come from,diagnosis
+What are the side effects of chemotherapy,treatment
+How does radiation therapy work for brain tumors,treatment
+How long does my treatment last,treatment
+What is the treatment plan for glioblastoma,treatment
+What is Temozolomide and its side effects,treatment
+How does chemotherapy work on brain tumors,treatment
+What is bevacizumab treatment,treatment
+What is tumor treating fields therapy,treatment
+What is the Stupp protocol,treatment
+When will I start chemotherapy,treatment
+How many radiation sessions will I have,treatment
+Can I work during chemotherapy,treatment
+What are common side effects of brain tumor treatment,treatment
+How do I manage nausea from chemotherapy,treatment
+What is steroid treatment for brain tumor,treatment
+Why am I taking dexamethasone,treatment
+What is antiepileptic medication,treatment
+Can I stop my medications,treatment
+What happens if I miss a dose of my medication,treatment
+My hair is falling out from treatment is that normal,treatment
+I feel very sick from chemo what can I do,treatment
+Is there alternative treatment for brain tumor,treatment
+What is immunotherapy for brain tumor,treatment
+What is a clinical trial for brain tumor,treatment
+When will my treatment end,treatment
+How effective is my treatment,treatment
+What is palliative care,treatment
+What supplements can I take during treatment,treatment
+Can I drink alcohol during treatment,treatment
+What is the difference between chemotherapy and radiation,treatment
+What is targeted therapy for brain tumor,treatment
+How do I cope with side effects of treatment,treatment
+When should I call my doctor about side effects,treatment
+How do steroids help with brain tumor,treatment
+What is the next step after radiation therapy,treatment
+What is re-irradiation for brain tumor,treatment
+Can I drive during treatment,treatment
+Will I lose my memory from radiation,treatment
+What is a cognitive side effect of treatment,treatment
+How do I manage fatigue during treatment,treatment
+What is occupational therapy after brain tumor treatment,treatment
+What is physical therapy for brain tumor patients,treatment
+What is speech therapy for brain tumor,treatment
+How do I manage my treatment at home,treatment
+What anti-nausea medication can I take,treatment
+What is the role of corticosteroids in my treatment,treatment
+Can I take herbal medicine with my cancer treatment,treatment
+What is maintenance chemotherapy,treatment
+What is second line treatment for glioma,treatment
+What is proton therapy for brain tumor,treatment
+What is gamma knife radiosurgery,treatment
+What is CyberKnife treatment,treatment
+What is IMRT radiation therapy,treatment
+What is WBRT whole brain radiation,treatment
+What is SRS stereotactic radiosurgery,treatment
+How do I prepare for my first chemotherapy session,treatment
+What should I bring to my radiation appointment,treatment
+How do I care for my scalp during radiation,treatment
+What is radiation dermatitis and how to manage it,treatment
+How do I manage mouth sores from chemotherapy,treatment
+What is low blood count during chemotherapy,treatment
+How do I manage bone marrow suppression,treatment
+What is growth factor injection during chemotherapy,treatment
+What is an antiemetic medication,treatment
+How do I manage constipation from medications,treatment
+What is peripheral neuropathy from chemotherapy,treatment
+How do I protect myself from infection during treatment,treatment
+What is a port for chemotherapy,treatment
+How is chemotherapy given for brain tumor,treatment
+What is oral chemotherapy,treatment
+What is intravenous chemotherapy,treatment
+What is intrathecal chemotherapy,treatment
+How often do I need blood tests during treatment,treatment
+What does my blood test result mean during treatment,treatment
+What is a treatment break,treatment
+Can treatment be paused if I feel very sick,treatment
+What is dose reduction in chemotherapy,treatment
+What should I eat with a brain tumor,nutrition
+What diet is good for cancer patients,nutrition
+What foods should I avoid during treatment,nutrition
+I have no appetite what should I do,nutrition
+What to eat when nauseous from chemotherapy,nutrition
+Can I eat sugar during cancer treatment,nutrition
+Is there a special diet for brain tumor patients,nutrition
+What foods help fight cancer,nutrition
+Should I take vitamin supplements,nutrition
+Can I eat meat during treatment,nutrition
+What is a balanced diet for cancer patients,nutrition
+I cannot eat much what should I eat to stay strong,nutrition
+What are easy foods to eat when I feel sick,nutrition
+Should I drink protein shakes,nutrition
+What is the calorie intake needed for cancer patients,nutrition
+Should I follow a ketogenic diet for brain tumor,nutrition
+Is fasting good for brain tumor treatment,nutrition
+What foods help with nausea,nutrition
+What should I drink when I feel sick,nutrition
+Can I drink juice during treatment,nutrition
+Should I avoid processed foods,nutrition
+What is a soft diet for cancer patients,nutrition
+How do I gain weight during treatment,nutrition
+How do I manage weight loss from treatment,nutrition
+What fruits are good for brain tumor patients,nutrition
+What vegetables should I eat,nutrition
+Can I eat fish during treatment,nutrition
+What is a high protein diet for cancer,nutrition
+Can I eat dairy products,nutrition
+What is an anti-inflammatory diet,nutrition
+Can I eat nuts and seeds during treatment,nutrition
+What about herbal teas during treatment,nutrition
+Is green tea good for brain tumor,nutrition
+What foods cause inflammation,nutrition
+I am losing too much weight what should I eat,nutrition
+How many meals should I eat per day,nutrition
+What is a nutrition plan for cancer patients,nutrition
+Can I eat rice and bread,nutrition
+What about probiotics during treatment,nutrition
+What is the best food for fighting fatigue,nutrition
+How much water should I drink each day,nutrition
+Can I eat garlic for cancer,nutrition
+What about turmeric for brain tumor,nutrition
+Is organic food better for cancer patients,nutrition
+What foods boost the immune system during treatment,nutrition
+Can I eat chocolate,nutrition
+What is the Mediterranean diet for cancer,nutrition
+How do I manage poor appetite,nutrition
+What is nutritional supplement for cancer patients,nutrition
+Can I eat spicy food during treatment,nutrition
+What is a calorie dense food for cancer patients,nutrition
+How do I get enough protein during treatment,nutrition
+What is a feeding tube and when is it needed,nutrition
+Can I eat fast food occasionally during treatment,nutrition
+What is a dietitian and should I see one,nutrition
+How do I manage taste changes during chemotherapy,nutrition
+What foods are easy to digest during treatment,nutrition
+Can I eat eggs during treatment,nutrition
+What is a smoothie recipe for cancer patients,nutrition
+How do I prepare meals when I have no energy,nutrition
+What is the best breakfast for cancer patients,nutrition
+Can I eat ice cream during treatment,nutrition
+What is a neutropenic diet during chemotherapy,nutrition
+What foods should I avoid when my blood count is low,nutrition
+Can I eat raw vegetables during chemotherapy,nutrition
+What is a high fiber diet for cancer patients,nutrition
+How do I stay hydrated during treatment,nutrition
+What drinks are good for cancer patients,nutrition
+Can I drink coconut water during treatment,nutrition
+What is the role of antioxidants in cancer diet,nutrition
+I have a headache,symptom
+I feel very tired all the time,symptom
+I am having memory problems,symptom
+My arm feels weak,symptom
+I feel nauseous regularly,symptom
+I have dizziness,symptom
+I am having trouble speaking,symptom
+I have blurred vision,symptom
+I feel confused sometimes,symptom
+I have difficulty walking,symptom
+I am having mood changes,symptom
+I feel depressed,symptom
+I have anxiety about my condition,symptom
+I am having trouble sleeping,symptom
+I have numbness in my hands,symptom
+My balance is poor,symptom
+I have trouble concentrating,symptom
+I am having personality changes,symptom
+I feel pain in my head,symptom
+I have pressure in my head,symptom
+I am forgetting things,symptom
+I have weakness on one side of my body,symptom
+I feel exhausted after small activities,symptom
+I have ringing in my ears,symptom
+I have trouble swallowing,symptom
+I am having coordination problems,symptom
+I feel light-headed,symptom
+I have constipation from medications,symptom
+I feel pins and needles in my legs,symptom
+I have difficulty reading,symptom
+I have muscle weakness,symptom
+I feel very emotional,symptom
+I have sensitivity to light,symptom
+I have sensitivity to sound,symptom
+I have loss of smell,symptom
+I am having trouble with fine motor skills,symptom
+I have hand tremors,symptom
+My headache is worse in the morning,symptom
+I have vomiting occasionally,symptom
+I feel mentally foggy,symptom
+I have difficulty with numbers and counting,symptom
+I have speech problems,symptom
+I feel my right side is weaker than the left,symptom
+I am having nighttime sweats,symptom
+I have a burning sensation in my head,symptom
+My vision is getting worse gradually,symptom
+I have difficulty finding words when speaking,symptom
+I feel like I have brain fog,symptom
+I am dropping things frequently,symptom
+I have lower back pain from lying in bed,symptom
+I have a mild headache that comes and goes,symptom
+I feel weak in my legs,symptom
+I have been feeling very sleepy during the day,symptom
+I have difficulty with my short term memory,symptom
+I feel tingling in my fingers,symptom
+I have neck stiffness,symptom
+I feel pressure behind my eyes,symptom
+I have been losing weight without trying,symptom
+I feel cold all the time,symptom
+I have reduced sensation in my feet,symptom
+I feel unsteady when I walk,symptom
+I have hiccups that will not stop,symptom
+I feel my thinking is slower than usual,symptom
+I have difficulty recognizing faces,symptom
+I have changes in my handwriting,symptom
+I feel irritable and short tempered,symptom
+I have been having strange smells,symptom
+I have difficulty with buttons and zips,symptom
+I feel my eyes are not working together,symptom
+I have been having vivid dreams,symptom
+I feel very cold in my hands and feet,symptom
+I have difficulty with reading comprehension,symptom
+I feel my head is heavy,symptom
+I have been having episodes of confusion,symptom
+I feel unwell but cannot describe it exactly,symptom
+I have a feeling of fullness in my head,symptom
+I have difficulty following conversations,symptom
+I feel my attention span is very short,symptom
+I have been having muscle cramps,symptom
+I feel my voice has changed,symptom
+I have difficulty judging distances,symptom
+I feel a strange taste in my mouth,symptom
+I have been having unusual thoughts,symptom
+I feel very sensitive to temperature changes,symptom
+I have difficulty planning tasks,symptom
+I feel my face is twitching,symptom
+I have been having episodes of fear for no reason,symptom
+I feel my legs are heavy,symptom
+I have difficulty with spatial awareness,symptom
+I feel a strange sensation moving through my body,symptom
+I have been losing my train of thought,symptom
+I feel my hearing is getting worse,symptom
+I have difficulty with time management,symptom
+I feel pressure on top of my head,symptom
+I have been having flashbacks,symptom
+I feel my reflexes are slow,symptom
+I have been having involuntary eye movements,symptom
+I feel a vibration sensation in my head,symptom
+When is my next appointment,general
+How do I contact my doctor,general
+What is the prognosis for my condition,general
+Will I get better,general
+How can my family support me,general
+What support groups are available for brain tumor patients,general
+How do I cope with having a brain tumor,general
+What is the next step in my care,general
+How long will I be in hospital,general
+Can I go back to work,general
+What restrictions do I have,general
+Can I drive with my condition,general
+Can I travel during treatment,general
+What activities can I do safely,general
+How do I explain my condition to my family,general
+What is end of life care,general
+How do I talk to my children about my illness,general
+What financial support is available for cancer patients,general
+Can I exercise with a brain tumor,general
+What kind of exercise is safe for me,general
+How do I manage stress,general
+What is mindfulness for cancer patients,general
+Are there any new treatments I should know about,general
+What does a follow-up appointment involve,general
+What is surveillance MRI,general
+How often will I have MRI scans,general
+What is the role of my care team,general
+Who should I call for non-emergency questions,general
+What is getting a second opinion for brain tumor,general
+Should I get a second opinion,general
+How do I prepare for my appointment,general
+What questions should I ask my doctor,general
+What is a cancer care coordinator,general
+How do I manage my energy levels,general
+What is the role of social worker in my care,general
+How do I access mental health support,general
+What does remission mean,general
+What does stable disease mean,general
+How do I keep a symptom diary,general
+What is advance care planning,general
+How do I make an informed decision about my treatment,general
+What is quality of life for brain tumor patients,general
+What is a performance score in cancer care,general
+How does my care team communicate with each other,general
+What is a multidisciplinary team for brain tumor,general
+What is a patient advocate,general
+How do I register with a specialist,general
+Can I see a different doctor,general
+What is a referral,general
+How do I get a copy of my medical records,general
+What is a power of attorney for medical decisions,general
+How do I write an advance directive,general
+What is a do not resuscitate order,general
+How do I talk to my employer about my illness,general
+What is sick leave for cancer patients,general
+How do I manage my finances during treatment,general
+What is health insurance coverage for brain tumor,general
+How do I apply for disability benefits,general
+What is a cancer support group in Sri Lanka,general
+How do I find a cancer counselor,general
+What is art therapy for cancer patients,general
+What is music therapy for cancer patients,general
+How do I find meaning during illness,general
+What is spiritual care for cancer patients,general
+How do I manage loneliness during treatment,general
+What is a palliative care team,general
+How do I access home care services,general
+What is respite care for caregivers,general
+How do I support my caregiver,general
+What is caregiver burnout,general
+How do I plan for the future with a brain tumor,general
+What is a bucket list for cancer patients,general
+How do I stay positive during treatment,general
+What is cancer fatigue and how to manage it,general
+How do I get back to normal life after treatment,general
+What is survivorship care,general
+What is a cancer survivorship plan,general
+How do I manage fear of recurrence,general
+What is post traumatic growth after cancer,general
+How do I celebrate small victories during treatment,general
+What is the role of humor in cancer recovery,general
+How do I stay connected with friends during treatment,general
+What is a cancer journal,general
+How do I document my treatment journey,general
+What is a cancer buddy program,general
+How do I help another person with brain tumor,general
+What is peer support for cancer patients,general
+
+How do I store my chemotherapy tablets safely,treatment
+What is a treatment response assessment,treatment
+What is neoadjuvant therapy for brain tumor,treatment
+How do I manage skin burns from radiation,treatment
+What is hypofractionated radiation therapy,treatment
+What is concomitant chemoradiation,treatment
+How do I manage low platelet count during treatment,treatment
+What is a treatment holiday,treatment
+How do I manage hair regrowth after treatment,treatment
+What is scalp cooling during chemotherapy,treatment
+How do I manage dry mouth during treatment,treatment
+What is mucositis and how to manage it,treatment
+How do I manage eye problems from radiation,treatment
+What is hormone therapy for brain tumor,treatment
+What is anti-VEGF therapy,treatment
+How do I manage swelling from steroids,treatment
+What is a treatment response scan,treatment
+How do I manage low sodium during treatment,treatment
+What is a lumbar puncture during treatment,treatment
+What is intracavitary chemotherapy,treatment
+How do I manage blood clots during treatment,treatment
+What is prophylactic anticoagulation,treatment
+What is a rehabilitation program after brain tumor treatment,treatment
+How do I manage cognitive changes after radiation,treatment
+What is neuropsychological testing after treatment,treatment
+What is a coconut based diet for cancer,nutrition
+How do I manage dry mouth when eating,nutrition
+What is a texture modified diet for cancer patients,nutrition
+How do I eat when I have mouth sores,nutrition
+What is enteral nutrition for cancer patients,nutrition
+What is parenteral nutrition,nutrition
+How do I manage food aversions during chemotherapy,nutrition
+What is a renal diet for cancer patients,nutrition
+How do I manage bloating during treatment,nutrition
+What is a low residue diet during treatment,nutrition
+How do I manage diarrhea with diet,nutrition
+What is a BRAT diet for cancer patients,nutrition
+How do I manage heartburn during treatment,nutrition
+What is a low sodium diet for cancer patients,nutrition
+What is a diabetic diet for cancer patients,nutrition
+How do I manage food allergies during treatment,nutrition
+What is a gluten free diet for cancer patients,nutrition
+What is a low fat diet for cancer patients,nutrition
+How do I manage zinc deficiency during treatment,nutrition
+What is iron rich food for cancer patients,nutrition
+How do I manage vitamin D deficiency,nutrition
+What is a calcium rich diet for cancer patients,nutrition
+How do I manage magnesium deficiency,nutrition
+What is a low iodine diet,nutrition
+How do I manage potassium levels through diet,nutrition
+How do I tell my boss I have brain cancer,general
+What is a cancer care plan,general
+How do I manage medical appointments efficiently,general
+What is a patient portal for medical records,general
+How do I get a medical certificate for work,general
+What is a disability parking permit for cancer patients,general
+How do I manage insurance claims for cancer treatment,general
+What is a cancer navigator,general
+How do I find a brain tumor specialist in Sri Lanka,general
+What is the National Cancer Institute,general
+What is a cancer hotline,general
+How do I volunteer for cancer research,general
+How do I donate to brain tumor research,general
+
+When is my next hospital appointment,general
+What time is my appointment tomorrow,general
+How do I reschedule my appointment,general
+Can I change my appointment date,general
+I need to book an appointment with my doctor,general
+How do I cancel my appointment,general
+What hospital do I go to for my appointment,general
+I missed my appointment what should I do,general
+How early should I arrive for my appointment,general
+What do I bring to my hospital appointment,general

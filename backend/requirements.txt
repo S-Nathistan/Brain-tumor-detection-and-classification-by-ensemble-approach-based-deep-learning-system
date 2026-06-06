@@ -1,20 +1,50 @@
+# =============================================================================
+#  NeuroSight — Main Backend
+#  Install:  pip install -r backend/requirements.txt
+#  Run from: project root
+#            uvicorn backend.main:app --reload --port 8000
+#
+#  For the Mobile Chatbot microservice (port 8001) also install:
+#            pip install -r backend/chatbot/requirements.txt
+#  Then run: uvicorn backend.chatbot.microservice:app --port 8001
+# =============================================================================
+
+# ── Core API ──────────────────────────────────────────────────────────────────
 fastapi
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 pydantic
+pydantic-settings
 python-multipart
+python-jose[cryptography]
+email-validator
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
 bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
-python-jose[cryptography]
-Pillow
-numpy
-pytesseract
-PyMuPDF
-pydantic-settings
-email-validator
+
+# ── MRI Classification ────────────────────────────────────────────────────────
 tensorflow-cpu
 scikit-learn
 xgboost
 opencv-python-headless
 PyWavelets
+numpy
+Pillow
+matplotlib
+
+# ── Document / OCR ────────────────────────────────────────────────────────────
+pytesseract
+PyMuPDF
+
+# ── Shared utilities ──────────────────────────────────────────────────────────
+joblib
+pandas
+
+# ── Mobile Chatbot ────────────────────────────────────────────────────────────
+# Full setup instructions: backend/chatbot/requirements.txt
+httpx                        # main backend calls chatbot microservice (port 8001)
+torch                        # DistilBERT inference
+transformers                 # HuggingFace tokenizer + model
+faiss-cpu                    # FAISS vector search (swap for faiss-gpu if CUDA available)

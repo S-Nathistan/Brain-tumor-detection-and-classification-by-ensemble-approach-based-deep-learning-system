@@ -102,7 +102,7 @@ export default function Welcome() {
       {/* Button — fade up last */}
       <button
         className="welcome-btn"
-        onClick={() => navigate('/language')}
+        onClick={() => navigate('/language', { replace: true })}
         style={{
           width: '100%', maxWidth: 320,
           padding: '16px 0',

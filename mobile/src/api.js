@@ -1,11 +1,11 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 
 export function getMobileToken() {
 	return localStorage.getItem('mobile_token')
 }
 
 export async function api(path, { method = 'GET', body, isForm = false } = {}) {
-	const headers = {}
+	const headers = { 'ngrok-skip-browser-warning': '1' }
 	const token = getMobileToken()
 	if (token) headers.Authorization = `Bearer ${token}`
 	if (!isForm) headers['Content-Type'] = 'application/json'
@@ -23,7 +23,9 @@ export async function api(path, { method = 'GET', body, isForm = false } = {}) {
 			const parsed = JSON.parse(text)
 			detail = parsed.detail || detail
 		} catch {}
-		throw new Error(detail)
+		const err = new Error(detail)
+		err.status = res.status
+		throw err
 	}
 
 	if (!text) return {}

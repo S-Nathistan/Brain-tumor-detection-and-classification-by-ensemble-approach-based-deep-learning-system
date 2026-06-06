@@ -77,6 +77,7 @@ def update_db():
             ("assigned_doctor_id",    "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
             ("from_location",         "VARCHAR(100)"),
             ("occupation",            "VARCHAR(100)"),
+            ("next_visit_date",       "VARCHAR(50)"),
         ])
 
         # Drop old string-based assigned_doctor column if it still exists
@@ -181,6 +182,8 @@ def update_db():
                         nausea                VARCHAR(50) NOT NULL,
                         medication            VARCHAR(50) NOT NULL,
                         overall               VARCHAR(50) NOT NULL,
+                        sleep                 VARCHAR(50),
+                        appetite              VARCHAR(50),
                         note                  TEXT,
                         score                 INTEGER NOT NULL,
                         level                 VARCHAR(20) NOT NULL,
@@ -196,6 +199,10 @@ def update_db():
                     raise
         else:
             print("  checkins table already exists")
+            _add_columns(conn, "checkins", [
+                ("sleep", "VARCHAR(50)"),
+                ("appetite", "VARCHAR(50)"),
+            ])
 
         # ── chat_messages table ────────────────────────────────────────────────
         print("Checking chat_messages table…")
@@ -220,6 +227,17 @@ def update_db():
                     raise
         else:
             print("  chat_messages table already exists")
+
+        # ── enrollments table ────────────────────────────────────────────────────
+        print("Checking enrollments table…")
+        if "enrollments" in inspect(conn).get_table_names():
+            _add_columns(conn, "enrollments", [
+                ("preferred_language", "VARCHAR(10)"),
+            ("reminder_time",      "VARCHAR(10)"),
+            ("last_active_at",     "TIMESTAMP WITH TIME ZONE"),
+            ])
+        else:
+            print("  enrollments table not found, skipping")
 
         print("DB update complete.")
 

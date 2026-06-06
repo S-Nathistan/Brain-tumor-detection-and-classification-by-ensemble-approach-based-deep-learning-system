@@ -19,6 +19,8 @@ class CheckIn(Base):
     nausea = Column(String(50), nullable=False)
     medication = Column(String(50), nullable=False)
     overall = Column(String(50), nullable=False)
+    sleep = Column(String(50), nullable=True)
+    appetite = Column(String(50), nullable=True)
     note = Column(Text, nullable=True)
     score = Column(Integer, nullable=False)
     level = Column(String(20), nullable=False)

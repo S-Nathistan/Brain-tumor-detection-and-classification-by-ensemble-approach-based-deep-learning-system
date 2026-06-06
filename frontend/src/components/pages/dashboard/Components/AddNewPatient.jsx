@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { api } from "../../../../util";
+import { useNavigate } from 'react-router-dom';
+import { api, API_BASE } from "../../../../util";
 
 
 const SYMPTOM_TAGS = [
@@ -369,12 +370,19 @@ function Nav({ step, onBack, onNext, onSubmit }) {
    Main Component
 ═══════════════════════════════════════════════════════════════════════ */
 const AddNewPatient = ({ onPatientAdded }) => {
+  const navigate = useNavigate();
   const [step, setStep]                         = useState(1);
   const [errors, setErrors]                     = useState({});
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [isOcrLoading, setIsOcrLoading]         = useState(false);
   const [dragActive, setDragActive]             = useState(false);
   const [doctors, setDoctors]                   = useState([]);
+  const [toast, setToast]                       = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const [data, setData] = useState({
     name: '', hospitalId: '', age: '', years: 'Years',
@@ -445,20 +453,24 @@ const AddNewPatient = ({ onPatientAdded }) => {
     const form = new FormData();
     form.append("file", file);
     try {
-      const res = await fetch("http://127.0.0.1:8000/patients/ocr-extract", { method: "POST", body: form });
+      const res = await fetch(`${API_BASE}/patients/ocr-extract`, { method: "POST", body: form });
       if (!res.ok) throw new Error("Backend rejected the file.");
       const ext = await res.json();
       setData(prev => ({
         ...prev,
-        name:           ext.name           || prev.name,
-        age:            ext.age            || prev.age,
-        gender:         ext.gender         || prev.gender,
-        patientPhone:   ext.phone          || prev.patientPhone,
-        email:          ext.email          || prev.email,
-        from:           ext.from           || prev.from,
-        occupation:     ext.occupation     || prev.occupation,
-        assignedDoctor: ext.assignedDoctor || prev.assignedDoctor,
-        symptomsNotes:  ext.symptomsNotes  || prev.symptomsNotes,
+        name:             ext.name             || prev.name,
+        age:              ext.age              || prev.age,
+        gender:           ext.gender           || prev.gender,
+        patientPhone:     ext.phone            || prev.patientPhone,
+        email:            ext.email            || prev.email,
+        from:             ext.from_location    || prev.from,
+        occupation:       ext.occupation       || prev.occupation,
+        address:          ext.address          || prev.address,
+        assignedDoctor:   ext.assignedDoctor   || prev.assignedDoctor,
+        symptomsNotes:    ext.symptomsNotes    || prev.symptomsNotes,
+        caretakerName:    ext.caretakerName    || prev.caretakerName,
+        caretakerPhone:   ext.caretakerPhone   || prev.caretakerPhone,
+        caretakerRelation: ext.caretakerRelation || prev.caretakerRelation,
       }));
     } catch (err) {
       console.error("OCR Error:", err);
@@ -510,16 +522,12 @@ const AddNewPatient = ({ onPatientAdded }) => {
 
     try {
       const saved = await api("/patients", { method: "POST", body: payload });
-      alert("✅ Patient successfully registered in the database!");
       if (onPatientAdded) onPatientAdded(saved);
-      const nextId = await fetchLatestId();
-      setData({ name: "", hospitalId: nextId, age: "", years: "Years", gender: "", email: "", address: "", patientPhone: "", caretakerName: "", caretakerPhone: "", caretakerRelation: "", from: "", occupation: "", symptomsNotes: "", assignedDoctor: "" });
-      setSelectedSymptoms([]);
-      setErrors({});
-      setStep(1);
+      showToast('Patient successfully registered');
+      setTimeout(() => navigate(`/patients/${saved.id}`), 1500);
     } catch (err) {
       console.error("Save Error:", err);
-      alert(`❌ Error saving patient: ${err.message || "Please check your inputs"}`);
+      showToast(err.message || 'Error saving patient. Please check your inputs.', 'error');
     }
   };
 
@@ -754,6 +762,13 @@ const AddNewPatient = ({ onPatientAdded }) => {
 
         </form>
       </div>
+
+      {toast && (
+        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", fontSize: 13, fontWeight: 600, background: toast.type === 'error' ? "#dc2626" : "#0d9488", color: "#fff", minWidth: 240 }}>
+          <span style={{ fontSize: 15 }}>{toast.type === 'error' ? '⚠' : '✓'}</span>
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 };

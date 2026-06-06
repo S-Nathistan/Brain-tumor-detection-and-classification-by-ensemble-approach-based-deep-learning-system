@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
@@ -12,9 +12,12 @@ from backend.models.admission import Admission
 from backend.models.chat_message import ChatMessage
 from backend.models.caretaker import Caretaker
 from backend.models.checkin import CheckIn
+from backend.models.medication_log import MedicationLog
+from backend.models.enrollment import Enrollment
 from backend.models.patient import Patient
 from backend.models.result import Result
 from backend.routers.treatment_plans import TreatmentPlan
+from backend.chatbot.classifier import get_classifier
 
 router = APIRouter(prefix="/mobile", tags=["mobile"])
 
@@ -38,6 +41,7 @@ def _patient_payload(patient: Patient) -> dict:
         "risk_score":      patient.risk_score or "0%",
         "assigned_doctor": patient.clinician.name if patient.clinician else None,
         "monitoring_frequency": _monitoring_frequency(patient.tumour_type),
+        "next_visit_date": patient.next_visit_date,
     }
 
 
@@ -150,7 +154,8 @@ def _patient_context(db: Session, patient: Patient) -> dict:
     if latest_result and latest_result.pathology_grade:
         diagnosis_parts.append(f"Grade {latest_result.pathology_grade}")
     elif latest_result and latest_result.predicted_label:
-        diagnosis_parts.append(latest_result.predicted_label)
+        if latest_result.predicted_label != patient.tumour_type:
+            diagnosis_parts.append(latest_result.predicted_label)
 
     plan_summary = "; ".join(
         _compact_text(
@@ -177,11 +182,9 @@ def _patient_context(db: Session, patient: Patient) -> dict:
 
     latest_scan = None
     if latest_result:
-        latest_scan = _safe_join([
-            latest_result.predicted_label,
-            f"confidence {latest_result.confidence:.1f}%" if latest_result.confidence is not None else None,
-            f"grade {latest_result.pathology_grade}" if latest_result.pathology_grade else None,
-        ])
+        label = latest_result.confirmed_label or latest_result.predicted_label
+        grade = f"Grade {latest_result.pathology_grade}" if latest_result.pathology_grade else None
+        latest_scan = _safe_join([label, grade])
 
     admission_info = _safe_join([
         f"episode {latest_admission.episode_number}" if latest_admission else None,
@@ -212,67 +215,59 @@ def _patient_context(db: Session, patient: Patient) -> dict:
     }
 
 
-def _answer_chat(message: str, context: dict) -> tuple[str, str, bool]:
-    lowered = message.lower().strip()
-    latest_checkin = context.get("latest_checkin")
+def _detect_language(text: str) -> str:
+    for ch in text:
+        cp = ord(ch)
+        if 0x0D80 <= cp <= 0x0DFF:
+            return "si"
+        if 0x0B80 <= cp <= 0x0BFF:
+            return "ta"
+    return "en"
 
-    if _has_emergency_language(lowered):
-        return (
-            "This sounds urgent. Call 1990 now or go to the nearest hospital right away.",
-            "emergency",
-            True,
+
+def _answer_chat(message: str, context: dict, language: str = "en") -> tuple[str, str, bool]:
+    """
+    Calls RAG microservice on port 8001.
+    Falls back to SVC classifier if microservice unavailable.
+    """
+    import httpx
+
+    # Try RAG microservice first
+    try:
+        response = httpx.post(
+            "http://127.0.0.1:8001/chat",
+            json={
+                "message": message,
+                "language": language,
+                "context": {
+                    "patient_name": context.get("patient_name", ""),
+                    "diagnosis": context.get("diagnosis", ""),
+                    "doctor": context.get("doctor", ""),
+                    "plan_summary": context.get("plan_summary", ""),
+                    "latest_scan": context.get("latest_scan", ""),
+                    "checkin_info": context.get("checkin_info", ""),
+                }
+            },
+            timeout=30.0
         )
+        if response.status_code == 200:
+            data = response.json()
+            return data["reply"], data["intent"], data["is_emergency"]
+    except Exception as e:
+        print(f"[Chat] RAG microservice unavailable: {e}, falling back to SVC")
 
-    if any(keyword in lowered for keyword in ["glioma", "tumour", "tumor", "diagnosis", "what do i have"]):
-        reply = _safe_join([
-            f"Your record shows {context['diagnosis']}.",
-            f"Your latest plan is {context['plan_summary']}" if context["plan_summary"] else None,
-            "Please ask your doctor to explain what this means for you personally.",
-        ], " ")
-        return reply, "diagnosis", False
+    # Fallback to existing SVC classifier
+    classifier = get_classifier()
+    if classifier is not None:
+        return classifier.answer(message, context)
 
-    if any(keyword in lowered for keyword in ["chemo", "chemotherapy", "side effects", "side effect"]):
-        reply = _safe_join([
-            "Common treatment side effects can include tiredness, nausea, poor appetite, and headache.",
-            f"Your current plan mentions {context['plan_summary']}" if context["plan_summary"] else None,
-            "Always ask your doctor before changing any medicine or dose.",
-        ], " ")
-        return reply, "treatment", False
-
-    if any(keyword in lowered for keyword in ["hospital", "go to hospital", "when should i go", "emergency", "worse"]):
-        reply = _safe_join([
-            "Go to hospital right away if you have a seizure, repeated vomiting, severe headache, confusion, weakness, trouble breathing, or a sudden change that worries you.",
-            f"Your latest check-in shows {context['checkin_info']}" if context["checkin_info"] else None,
-            "If you feel worse now, call 1990.",
-        ], " ")
-        return reply, "emergency", True
-
-    if any(keyword in lowered for keyword in ["eat", "food", "diet", "eat should", "what should i eat"]):
-        reply = _safe_join([
-            "Small meals, water, and soft foods are often easier when appetite is low.",
-            "Protein-rich foods can help if you can tolerate them, but avoid anything that makes nausea worse.",
-            "If symptoms continue, your doctor or dietitian should guide you.",
-        ], " ")
-        return reply, "nutrition", False
-
-    if any(keyword in lowered for keyword in ["pain", "hurt", "aching", "headache", "hip"]):
-        reply = _safe_join([
-            "Pain that is severe or getting worse should be reported to your care team.",
-            f"Your record shows {context['diagnosis']} and the latest treatment plan is {context['plan_summary']}" if context["plan_summary"] else f"Your record shows {context['diagnosis']}.",
-            "Please use the report symptom flow or contact your doctor.",
-        ], " ")
-        return reply, "symptom", False
-
-    reply = _safe_join([
-        f"Based on your record, your diagnosis is {context['diagnosis']}.",
-        f"Your current treatment plan is {context['plan_summary']}" if context["plan_summary"] else "No treatment plan is recorded yet.",
-        f"Your assigned doctor is {context['doctor']}." if context['doctor'] else "Please confirm the next step with your doctor.",
-    ], " ")
-    if latest_checkin and latest_checkin.level in {"RED", "CRITICAL"}:
-        reply = _safe_join([reply, f"Your latest check-in was {latest_checkin.level.lower()} with score {latest_checkin.score}."], " ")
-    reply = _safe_join([reply, "Please ask your doctor to confirm important treatment decisions."], " ")
-    return reply, "general", False
-
+    # Final fallback rule based
+    return (
+        f"Based on your record, your diagnosis is {context.get('diagnosis', 'unknown')}. "
+        "Please consult your doctor for more information.",
+        "general",
+        False,
+    )
 
 # ── dependency used by future authenticated mobile endpoints ─────────────────
 
@@ -300,6 +295,7 @@ def get_mobile_patient(
 
 class PatientLoginRequest(BaseModel):
     hospital_id: str
+    language: str | None = None
 
 class CaretakerLoginRequest(BaseModel):
     hospital_id: str
@@ -313,6 +309,8 @@ class CheckInCreateRequest(BaseModel):
     nausea: str
     medication: str
     overall: str
+    sleep: str | None = None
+    appetite: str | None = None
     note: str | None = None
     trigger_source: str | None = None
 
@@ -331,6 +329,8 @@ class CheckInResponse(BaseModel):
     nausea: str
     medication: str
     overall: str
+    sleep: str | None = None
+    appetite: str | None = None
     note: str | None = None
     score: int
     level: str
@@ -364,15 +364,50 @@ class ChatResponse(BaseModel):
     patient_summary: str
 
 
+class NotifyRequest(BaseModel):
+    message: str
+
+
+class SymptomReportRequest(BaseModel):
+    symptom_type: str
+    description: str | None = None
+
+
+class MedicationLogRequest(BaseModel):
+    plan_id:   int
+    med_index: int
+    slot:      str        # e.g. '08:00'
+    taken_date: str       # YYYY-MM-DD
+
+
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/login")
 def patient_login(body: PatientLoginRequest, db: Session = Depends(get_db)):
-    patient = db.query(Patient).filter(
-        Patient.hospital_id == body.hospital_id.strip().upper()
-    ).first()
+    lookup = body.hospital_id.strip()
+    normalized = lookup.upper()
+
+    query = db.query(Patient).filter(Patient.hospital_id == normalized)
+    if lookup.isdigit():
+        query = query.union_all(db.query(Patient).filter(Patient.id == int(lookup)))
+
+    patient = query.first()
     if not patient:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Patient not found")
+
+    enrollment = db.query(Enrollment).filter(Enrollment.patient_id == patient.id).first()
+    if enrollment:
+        changed = False
+        if not enrollment.first_login_at:
+            enrollment.first_login_at = datetime.now(timezone.utc)
+            if enrollment.status == "sent":
+                enrollment.status = "active"
+            changed = True
+        if body.language and body.language in ("en", "si", "ta"):
+            enrollment.preferred_language = body.language
+            changed = True
+        if changed:
+            db.commit()
 
     return {
         "token":   _create_mobile_token(patient.id, "patient"),
@@ -434,6 +469,8 @@ def latest_checkin(
         nausea=latest.nausea,
         medication=latest.medication,
         overall=latest.overall,
+        sleep=latest.sleep,
+        appetite=latest.appetite,
         note=latest.note,
         score=latest.score,
         level=latest.level,
@@ -479,14 +516,14 @@ def submit_checkin(
     scoring = {
         "headache": {
             "No headache": 0,
-            "Mild — a little": 1,
-            "Moderate — painful": 2,
-            "Severe — very bad": 3,
+            "Mild (a little)": 1,
+            "Moderate (painful)": 2,
+            "Severe (very bad)": 3,
         },
         "seizure": {
             "No": 0,
-            "Yes — brief": 5,
-            "Yes — long time": 5,
+            "Yes (brief)": 5,
+            "Yes (long)": 5,
         },
         "energy": {
             "Normal": 0,
@@ -501,7 +538,7 @@ def submit_checkin(
             "Vomited many times": 3,
         },
         "medication": {
-            "Yes — all doses": 0,
+            "Yes (all doses)": 0,
             "Missed one dose": 1,
             "Missed all doses": 2,
             "No medication today": 0,
@@ -512,11 +549,23 @@ def submit_checkin(
             "Worse than yesterday": 2,
             "Much worse": 3,
         },
+        "sleep": {
+            "Well": 0,
+            "Okay": 1,
+            "Poor": 2,
+            "Very little": 3,
+        },
+        "appetite": {
+            "Normal": 0,
+            "Slightly low": 1,
+            "Very low": 2,
+            "Could not eat": 3,
+        },
     }
 
     score = sum(
         _score_answer(getattr(body, field), scoring[field])
-        for field in ["headache", "seizure", "energy", "nausea", "medication", "overall"]
+        for field in ["headache", "seizure", "energy", "nausea", "medication", "overall", "sleep", "appetite"]
     )
     level, emergency, message = _derive_level(score, body.seizure)
 
@@ -531,6 +580,8 @@ def submit_checkin(
         nausea=body.nausea,
         medication=body.medication,
         overall=body.overall,
+        sleep=body.sleep,
+        appetite=body.appetite,
         note=(body.note or "").strip() or None,
         score=score,
         level=level,
@@ -554,6 +605,8 @@ def submit_checkin(
         nausea=checkin.nausea,
         medication=checkin.medication,
         overall=checkin.overall,
+        sleep=checkin.sleep,
+        appetite=checkin.appetite,
         note=checkin.note,
         score=checkin.score,
         level=checkin.level,
@@ -561,6 +614,91 @@ def submit_checkin(
         created_at=checkin.created_at,
         message=message,
     )
+
+
+
+@router.post("/notify")
+def notify_clinician(
+    body: NotifyRequest,
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    """Persist a lightweight clinician alert (dev).
+
+    This endpoint records an emergency chat message and returns success.
+    In production this should trigger email/push notifications to the assigned clinician.
+    """
+    patient, _role = auth
+    message = (body.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is required")
+
+    chat = ChatMessage(
+        patient_id=patient.id,
+        user_message=message,
+        bot_reply="Clinician notified (dev)",
+        emergency=True,
+    )
+    db.add(chat)
+    db.commit()
+    db.refresh(chat)
+
+    return {"notified": True, "id": chat.id, "message": "Clinician notified (dev)"}
+
+
+class PreferencesRequest(BaseModel):
+    language: str
+    reminder_time: str | None = None
+
+
+@router.post("/language")
+def save_preferences(
+    body: PreferencesRequest,
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    patient, _role = auth
+    lang = body.language.strip()
+    if lang not in ("en", "si", "ta"):
+        return {"ok": False}
+    enrollment = db.query(Enrollment).filter(Enrollment.patient_id == patient.id).first()
+    if enrollment:
+        enrollment.preferred_language = lang
+        enrollment.last_active_at = datetime.now(timezone.utc)
+        if body.reminder_time:
+            enrollment.reminder_time = body.reminder_time
+        db.commit()
+    return {"ok": True}
+
+
+@router.post("/symptom-report")
+def report_symptom(
+    body: SymptomReportRequest,
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    """Store a non-emergency irregular symptom reported by the patient."""
+    patient, _role = auth
+    symptom_type = (body.symptom_type or "").strip()
+    if not symptom_type:
+        from fastapi import HTTPException as _H
+        raise _H(status_code=400, detail="symptom_type is required")
+
+    parts = [f"New symptom: {symptom_type}"]
+    if body.description and body.description.strip():
+        parts.append(f"Details: {body.description.strip()}")
+
+    chat = ChatMessage(
+        patient_id=patient.id,
+        user_message=" | ".join(parts),
+        bot_reply="Received by care team",
+        topic="symptom_report",
+        emergency=False,
+    )
+    db.add(chat)
+    db.commit()
+    db.refresh(chat)
+    return {"saved": True, "id": chat.id}
 
 
 @router.get("/chat/history", response_model=list[ChatHistoryItem])
@@ -588,6 +726,118 @@ def chat_history(
     ]
 
 
+@router.get("/report")
+def patient_report(
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    patient, _role = auth
+    enrollment = db.query(Enrollment).filter(Enrollment.patient_id == patient.id).first()
+    if enrollment:
+        enrollment.last_active_at = datetime.now(timezone.utc)
+        db.commit()
+    latest_result = _latest_result(db, patient.id)
+    # Fetch all plans (not just latest 3) so the patient sees every care plan including older medication plans
+    plans = (
+        db.query(TreatmentPlan)
+        .filter(TreatmentPlan.patient_id == patient.id)
+        .order_by(TreatmentPlan.id.desc())
+        .all()
+    )
+
+    scan = None
+    if latest_result:
+        label = latest_result.confirmed_label or latest_result.predicted_label
+        scan = {
+            "ai_prediction":    latest_result.predicted_label,
+            "confirmed_label":  latest_result.confirmed_label,
+            "final_label":      label,
+            "pathology_grade":  latest_result.pathology_grade,
+            "confidence":       round((latest_result.confidence or 0) * 100, 1),
+            "scanned_at":       latest_result.created_at.isoformat() if latest_result.created_at else None,
+            "doctor_confirmed": latest_result.confirmed_label is not None,
+        }
+
+    return {
+        "patient": _patient_payload(patient),
+        "scan": scan,
+        "treatment_plans": [
+            {
+                "id":               p.id,
+                "title":            p.title,
+                "plan_type":        p.plan_type,
+                "medications":      p.medications,
+                "therapy_schedule": p.therapy_schedule,
+                "surgery_details":  p.surgery_details,
+                "notes":            p.notes,
+                "status":           p.status,
+                "plan_date":        p.plan_date,
+                "created_by_name":  p.created_by_name,
+            }
+            for p in plans
+        ],
+    }
+
+
+class PatientSettingsRequest(BaseModel):
+    tumour_type: str | None = None
+
+
+@router.put("/patient")
+def update_mobile_patient(
+    body: PatientSettingsRequest,
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    """Allow mobile users to update limited patient settings (tumour_type).
+
+    This endpoint updates only safe fields that patients can change from the mobile app.
+    """
+    patient, _role = auth
+    updated = False
+    if body.tumour_type is not None:
+        patient.tumour_type = body.tumour_type.strip() or None
+        updated = True
+
+    if updated:
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
+
+    return _patient_payload(patient)
+
+
+@router.post("/medication-log")
+def log_medication(
+    body: MedicationLogRequest,
+    auth: tuple[Patient, str] = Depends(get_mobile_patient),
+    db: Session = Depends(get_db),
+):
+    """Record that the patient has taken a medication dose. Idempotent."""
+    patient, _role = auth
+    existing = (
+        db.query(MedicationLog)
+        .filter(
+            MedicationLog.patient_id == patient.id,
+            MedicationLog.plan_id    == body.plan_id,
+            MedicationLog.med_index  == body.med_index,
+            MedicationLog.slot       == body.slot,
+            MedicationLog.taken_date == body.taken_date,
+        )
+        .first()
+    )
+    if not existing:
+        db.add(MedicationLog(
+            patient_id = patient.id,
+            plan_id    = body.plan_id,
+            med_index  = body.med_index,
+            slot       = body.slot,
+            taken_date = body.taken_date,
+        ))
+        db.commit()
+    return {"ok": True}
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat_reply(
     body: ChatCreateRequest,
@@ -600,7 +850,8 @@ def chat_reply(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is required")
 
     context = _patient_context(db, patient)
-    reply, topic, emergency = _answer_chat(message, context)
+    language = _detect_language(message)
+    reply, topic, emergency = _answer_chat(message, context, language)
 
     chat = ChatMessage(
         patient_id=patient.id,

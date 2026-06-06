@@ -13,7 +13,9 @@ from backend.core.security import get_current_active_user
 from backend.db.database import get_db
 from backend.models.patient import Patient
 from backend.models.caretaker import Caretaker
+from backend.models.chat_message import ChatMessage
 from backend.models.user import User
+from backend.models.checkin import CheckIn
 
 from backend.schemas.patient import PatientCreate, PatientRead, PatientResponse, PatientUpdate, OCRResponse, CaretakerRead
 from pydantic import BaseModel as _BaseModel
@@ -60,30 +62,59 @@ async def extract_medical_report(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         if file.filename.lower().endswith(".pdf"):
-            pdf_document = fitz.open("pdf", contents)
+            pdf_document = fitz.open(stream=contents, filetype="pdf")
             first_page = pdf_document.load_page(0)
-            pix = first_page.get_pixmap()
-            img_data = pix.tobytes("png")
-            image = Image.open(io.BytesIO(img_data))
+            # Direct extraction for digital PDFs (no Tesseract needed)
+            extracted_text = first_page.get_text()
+            # Fall back to OCR only for scanned PDFs with no embedded text
+            if len(extracted_text.strip()) < 50:
+                mat = fitz.Matrix(3, 3)
+                pix = first_page.get_pixmap(matrix=mat)
+                image = Image.open(io.BytesIO(pix.tobytes("png")))
+                extracted_text = pytesseract.image_to_string(image)
         else:
             image = Image.open(io.BytesIO(contents))
-            
-        extracted_text = pytesseract.image_to_string(image)
+            extracted_text = pytesseract.image_to_string(image)
         data = OCRResponse()
-        
-        name_match = re.search(r'(?i)(?:Name|Patient):\s*([A-Za-z\s]+)(?=\n|$)', extracted_text)
+
+        # Patterns handle both "Label: Value" and two-line "LABEL\nValue" formats
+        name_match = re.search(r'(?i)(?:full\s+name|patient\s+name|name|patient)\s*[:\n]\s*([A-Za-z][^\n]{1,60})', extracted_text)
         if name_match: data.name = name_match.group(1).strip()
-            
-        age_match = re.search(r'(?i)Age:\s*(\d+)', extracted_text)
+
+        age_match = re.search(r'(?i)\bage\b\s*[:\n]\s*(\d+)', extracted_text)
         if age_match: data.age = age_match.group(1).strip()
-            
-        gender_match = re.search(r'(?i)Gender:\s*(Male|Female|Other)', extracted_text)
+
+        gender_match = re.search(r'(?i)(?:biological\s+sex|gender)\s*[:\n]\s*(Male|Female|Other)', extracted_text)
         if gender_match: data.gender = gender_match.group(1).strip().capitalize()
-            
-        doc_match = re.search(r'(?i)(?:Doctor|Consultant):\s*(Dr\.\s*[A-Za-z\s\.]+)', extracted_text)
+
+        doc_match = re.search(r'(?i)(?:consulting\s+specialist|doctor|consultant)\s*[:\n]\s*(Dr\.?\s*[^\n]{2,50})', extracted_text)
         if doc_match: data.assignedDoctor = doc_match.group(1).strip()
 
-        symp_match = re.search(r'(?i)(?:Symptoms|Clinical Notes):\s*(.*?)(?=\n\n|$)', extracted_text, re.DOTALL)
+        phone_match = re.search(r'(?i)(?:patient\s+)?phone(?:\s+number)?\s*[:\n]\s*([\+\d][\d\s\-\(\)]{5,25})', extracted_text)
+        if phone_match: data.phone = phone_match.group(1).strip()
+
+        email_match = re.search(r'(?i)(?:\w[\w\s]*\s+)?e[-\s]?mail\s*[:\n]\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})', extracted_text)
+        if email_match: data.email = email_match.group(1).strip()
+
+        addr_match = re.search(r'(?i)(?:home\s+)?address\s*[:\n]\s*([^\n]{5,150})', extracted_text)
+        if addr_match: data.address = addr_match.group(1).strip()
+
+        occ_match = re.search(r'(?i)occupation\s*[:\n]\s*([^\n]{2,50})', extracted_text)
+        if occ_match: data.occupation = occ_match.group(1).strip()
+
+        from_match = re.search(r'(?i)from\s*(?:\([^)]*\))?\s*[:\n]\s*([^\n]{2,80})', extracted_text)
+        if from_match: data.from_location = from_match.group(1).strip()
+
+        caretaker_name_match = re.search(r'(?i)caretaker\s+(?:full\s+)?name\s*[:\n]\s*([^\n]{2,60})', extracted_text)
+        if caretaker_name_match: data.caretakerName = caretaker_name_match.group(1).strip()
+
+        caretaker_phone_match = re.search(r'(?i)caretaker\s+phone(?:\s+number)?\s*[:\n]\s*([\+\d][\d\s\-\(\)]{5,25})', extracted_text)
+        if caretaker_phone_match: data.caretakerPhone = caretaker_phone_match.group(1).strip()
+
+        relation_match = re.search(r'(?i)\brelation\b\s*[:\n]\s*([^\n]{2,30})', extracted_text)
+        if relation_match: data.caretakerRelation = relation_match.group(1).strip()
+
+        symp_match = re.search(r'(?i)(?:presenting\s+)?symptoms[^\n]*\n(.*?)(?=\n{2,}[A-Z]|ADDITIONAL|SECTION|\Z)', extracted_text, re.DOTALL)
         if symp_match: data.symptomsNotes = " ".join(symp_match.group(1).split())
 
         return data
@@ -150,6 +181,9 @@ def get_all_patients(db: Session = Depends(get_db), current_user: User = Depends
         out.append(obj)
     return out
 
+
+
+
 # Read One
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
@@ -159,6 +193,46 @@ def get_patient(patient_id: int, db: Session = Depends(get_db), current_user: Us
     obj = PatientResponse.model_validate(patient)
     obj.assigned_doctor = patient.clinician.name if patient.clinician else None
     return obj
+
+
+@router.get("/{patient_id}/checkins")
+def get_patient_checkins(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if current_user.role in {"Clinician", "Doctor"} and patient.assigned_doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    rows = (
+        db.query(CheckIn)
+        .filter(CheckIn.patient_id == patient_id)
+        .order_by(CheckIn.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": row.id,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "score": row.score,
+            "level": row.level,
+            "emergency": bool(row.emergency),
+            "trigger_source": row.trigger_source,
+            "headache": row.headache,
+            "seizure": row.seizure,
+            "energy": row.energy,
+            "nausea": row.nausea,
+            "medication": row.medication,
+            "overall": row.overall,
+            "note": row.note,
+        }
+        for row in rows
+    ]
 
 # Update
 @router.put("/{patient_id}", response_model=PatientResponse)
@@ -388,3 +462,45 @@ def decrypt_blockchain_record(
         return {"cid": cid, "plaintext": plaintext}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Decryption failed: {str(e)}")
+
+
+# ── Patient chat history (clinician view) ────────────────────────────────────
+
+class ChatMessageOut(_BaseModel):
+    id: int
+    user_message: str
+    bot_reply: str
+    topic: _Optional[str]
+    emergency: bool
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/{patient_id}/chat", response_model=list[ChatMessageOut])
+def get_patient_chat_history(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.patient_id == patient_id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
+    return [
+        ChatMessageOut(
+            id=r.id,
+            user_message=r.user_message,
+            bot_reply=r.bot_reply,
+            topic=r.topic,
+            emergency=bool(r.emergency),
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in rows
+    ]

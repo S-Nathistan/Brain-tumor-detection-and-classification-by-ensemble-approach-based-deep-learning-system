@@ -23,6 +23,16 @@ uploaded_mris/
 uploads/
 tumor_models/
 
+# Mobile Chatbot — large model file (share via Google Drive)
+backend/chatbot/model/neurosight_distilbert/model.safetensors
+
+# Mobile — node modules
+mobile/node_modules/
+
+# Environment / Secrets
+.env
+backend/.env
+
 # IDE / System
 .vscode/
 .idea/

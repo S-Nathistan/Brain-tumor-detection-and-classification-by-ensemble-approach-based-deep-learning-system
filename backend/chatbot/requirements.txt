@@ -1,0 +1,63 @@
+# =============================================================================
+#  NeuroSight — Mobile Chatbot
+#  Install:  pip install -r backend/chatbot/requirements.txt
+#  Run from: project root  (e.g.  cd NeuroSightAI/BrainTumorApp)
+# =============================================================================
+#
+#  SETUP ORDER
+#  -----------
+#  Step 1 — Install main backend deps first
+#           pip install -r backend/requirements.txt
+#
+#  Step 2 — Install chatbot-specific deps (this file)
+#           pip install -r backend/chatbot/requirements.txt
+#
+#  Step 3 — Train the TF-IDF fallback classifier (one-time, ~10 sec)
+#           python -m backend.chatbot.train
+#           Output saved to: backend/chatbot/model/
+#             vectorizer.pkl / intent_model.pkl / label_encoder.pkl
+#
+#  Step 4 — Verify model files are present
+#           backend/chatbot/model/neurosight_distilbert/model.safetensors
+#           backend/chatbot/model/faiss_index.bin
+#           backend/chatbot/model/qa_dataset_final.csv
+#           (these are the RAG model files — do NOT delete them)
+#
+#  RUNNING ORDER (two terminals)
+#  ------------------------------
+#  Terminal 1 — Main backend       (port 8000)
+#           uvicorn backend.main:app --reload --port 8000
+#
+#  Terminal 2 — Mobile Chatbot microservice   (port 8001)
+#           uvicorn backend.chatbot.microservice:app --port 8001
+#
+#  The main backend (8000) calls the chatbot (8001) for every chat message.
+#  If port 8001 is not running, the main backend automatically falls back
+#  to the TF-IDF + SVC classifier (no crash, reduced quality).
+#
+#  NOTES
+#  -----
+#  - faiss-cpu  is for CPU-only machines (most laptops)
+#    Use faiss-gpu instead if you have an NVIDIA GPU + CUDA installed
+#  - torch CPU build is ~700 MB — download may take a few minutes
+#  - The DistilBERT model (model.safetensors, ~516 MB) is NOT on PyPI;
+#    it must be present in backend/chatbot/model/neurosight_distilbert/
+#    Ask the team for the model file or retrain with the RAG training script
+# =============================================================================
+
+# ── Mobile Chatbot — Core ML ──────────────────────────────────────────────────
+torch                        # DistilBERT inference engine (CPU build by default)
+transformers                 # HuggingFace: DistilBERT tokenizer + model loader
+faiss-cpu                    # FAISS vector similarity search (use faiss-gpu for GPU)
+
+# ── Mobile Chatbot — Data & Utilities ────────────────────────────────────────
+httpx                        # HTTP client — main backend uses this to call port 8001
+pandas                       # QA dataset loading (qa_dataset_final.csv)
+numpy                        # Embedding math (cosine similarity)
+scikit-learn                 # TF-IDF + SVC fallback classifier
+joblib                       # Load/save .pkl model files
+
+# ── Mobile Chatbot — Microservice ────────────────────────────────────────────
+fastapi                      # Chatbot microservice API (port 8001)
+uvicorn[standard]            # ASGI server to run the microservice
+pydantic                     # Request / response schemas

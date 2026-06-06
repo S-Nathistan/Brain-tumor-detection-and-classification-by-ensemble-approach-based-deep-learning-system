@@ -168,13 +168,27 @@ const PatientDetail = () => {
   const [editingPlan, setEditingPlan] = useState(null);
   const [chainInfoId, setChainInfoId] = useState(null);
   const [expandedCheckin, setExpandedCheckin] = useState(null);
+  const [calWeeksBack, setCalWeeksBack] = useState(0);
   const [monitoringSubTab, setMonitoringSubTab] = useState('checkin');
+  const [monitoringCheckins, setMonitoringCheckins] = useState([]);
   const [planSaving, setPlanSaving] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [monitoringAlerts, setMonitoringAlerts] = useState([]);
+  const [symptomReports, setSymptomReports] = useState([]);
   const [caretakers, setCaretakers] = useState([]);
   const [caretakerEdits, setCaretakerEdits] = useState({});
   const [caretakerUpdateSaving, setCaretakerUpdateSaving] = useState(null);
+  const [enrollmentStatus, setEnrollmentStatus] = useState(null);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollResult, setEnrollResult] = useState(null);
+  const [medAdherence, setMedAdherence] = useState({ medications: [], logs: [], days: 30, since: '' });
+  const [medOffsets, setMedOffsets] = useState({});
+  const [linkCopied, setLinkCopied] = useState(false);
   const [newCaretaker, setNewCaretaker] = useState({ name: '', phone: '', relation: '' });
   const [caretakerSaving, setCaretakerSaving] = useState(false);
+  const [editingNextVisit, setEditingNextVisit] = useState(false);
+  const [nextVisitInput, setNextVisitInput] = useState('');
   const [newPlanForm, setNewPlanForm] = useState({
     plan_date: new Date().toISOString().slice(0, 10),
     plan_type: 'Medication', title: '', medications: '',
@@ -197,12 +211,45 @@ const PatientDetail = () => {
         api(`/treatment-plans/patient/${id}`).catch(() => []),
         api(`/patients/${id}/caretakers`).catch(() => []),
       ]);
+      // fetch patient-specific checkins for monitoring tab
+      try {
+        const ck = await api(`/patients/${id}/checkins`).catch(() => []);
+        setMonitoringCheckins(Array.isArray(ck) ? ck : []);
+      } catch (e) {
+        setMonitoringCheckins([]);
+      }
+      // fetch patient-specific emergency alerts and filter to this patient
+      try {
+        const rawAlerts = await api(`/dashboard/patient-alerts?limit=100`).catch(() => []);
+        const filteredAlerts = Array.isArray(rawAlerts)
+          ? rawAlerts.filter(alert => String(alert.patient_id) === String(id))
+          : [];
+        setMonitoringAlerts(filteredAlerts);
+      } catch (e) {
+        setMonitoringAlerts([]);
+      }
+      // fetch non-emergency symptom reports submitted via the mobile Report Symptom page
+      try {
+        const reports = await api(`/dashboard/symptom-reports/${id}`).catch(() => []);
+        setSymptomReports(Array.isArray(reports) ? reports : []);
+      } catch (e) {
+        setSymptomReports([]);
+      }
+      // fetch medication adherence data for the monitoring tab
+      try {
+        const adh = await api(`/dashboard/medication-adherence/${id}`).catch(() => null);
+        if (adh && Array.isArray(adh.medications)) setMedAdherence(adh);
+      } catch (e) {
+        // leave default empty state
+      }
       setEditData(prev => ({ ...prev, documents: docs }));
       setPatientAdmissions(admissions);
       setTreatmentPlans(Array.isArray(plans) ? plans : []);
       const ctList = Array.isArray(ctakers) ? ctakers : [];
       setCaretakers(ctList);
       setCaretakerEdits(Object.fromEntries(ctList.map(ct => [ct.id, { name: ct.name, phone: ct.phone, relation: ct.relation || '' }])));
+
+      api(`/enrollment/${id}/status`).then(s => setEnrollmentStatus(s)).catch(() => {});
     } catch (err) {
       console.error("Failed to fetch patient", err);
     } finally {
@@ -249,6 +296,16 @@ const PatientDetail = () => {
 
   const handleEditChange = (e) => {
     setEditData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const saveNextVisitDate = async () => {
+    try {
+      await api(`/patients/${patient.id}`, { method: 'PUT', body: { next_visit_date: nextVisitInput || null } });
+      setPatient(prev => ({ ...prev, next_visit_date: nextVisitInput || null }));
+      setEditingNextVisit(false);
+    } catch (e) {
+      console.error('Failed to save next visit date', e);
+    }
   };
 
   const handleNewAdmission = async () => {
@@ -427,7 +484,7 @@ const PatientDetail = () => {
   );
 
   const hTa = (fieldName, placeholder, rows = 3) => {
-    const canEdit = isClinical;
+    const canEdit = isClinical && pageMode === 'edit';
     return (
       <textarea
         name={fieldName} rows={rows}
@@ -504,9 +561,9 @@ const PatientDetail = () => {
           </div>
         </div>
       )}
-      <ExamSection label="Examination Findings" hint="General appearance, vital signs, HEENT, chest, abdomen, CNS findings…" fieldName="examinationFindings" canEdit={isClinical} value={editData.examinationFindings || ''} onChange={handleEditChange} />
-      <ExamSection label="Muscle Power" hint="Upper / lower limb grading (MRC scale 0–5) — proximal & distal groups" fieldName="musclePower" canEdit={isClinical} value={editData.musclePower || ''} onChange={handleEditChange} />
-      <ExamSection label="Reflex" hint="Deep tendon reflexes (biceps, triceps, knee, ankle) — graded 0–4+; plantar response" fieldName="reflex" canEdit={isClinical} value={editData.reflex || ''} onChange={handleEditChange} />
+      <ExamSection label="Examination Findings" hint="General appearance, vital signs, HEENT, chest, abdomen, CNS findings…" fieldName="examinationFindings" canEdit={isClinical && pageMode === 'edit'} value={editData.examinationFindings || ''} onChange={handleEditChange} />
+      <ExamSection label="Muscle Power" hint="Upper / lower limb grading (MRC scale 0–5) — proximal & distal groups" fieldName="musclePower" canEdit={isClinical && pageMode === 'edit'} value={editData.musclePower || ''} onChange={handleEditChange} />
+      <ExamSection label="Reflex" hint="Deep tendon reflexes (biceps, triceps, knee, ankle) — graded 0–4+; plantar response" fieldName="reflex" canEdit={isClinical && pageMode === 'edit'} value={editData.reflex || ''} onChange={handleEditChange} />
     </div>
   );
 
@@ -748,30 +805,136 @@ const PatientDetail = () => {
     );
   };
 
+  const handleEnroll = async () => {
+    setEnrolling(true);
+    setEnrollResult(null);
+    try {
+      const res = await api(`/enrollment/${id}`, { method: 'POST' });
+      setEnrollResult(res);
+      setEnrollmentStatus({ enrolled: true, status: 'sent' });
+    } catch (err) {
+      setEnrollResult({ success: false, error: err.message });
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   const renderMonitoringTab = () => {
-    const DEMO_CHECKINS = [
-      { date: '17 May 2026', time: '08:02 PM', score: 12, level: 'RED',      headache: 'Severe', seizure: 'No', energy: 'Cannot get up', nausea: 'Vomited once', medication: 'Yes — all doses', overall: 'Much worse',       note: 'Headache getting worse since morning' },
-      { date: '16 May 2026', time: '08:11 PM', score: 5,  level: 'AMBER',    headache: 'Moderate', seizure: 'No', energy: 'Very tired', nausea: 'Feeling sick', medication: 'Yes — all doses', overall: 'Worse than yesterday', note: '' },
-      { date: '15 May 2026', time: '08:00 PM', score: 1,  level: 'GREEN',    headache: 'No headache', seizure: 'No', energy: 'Normal', nausea: 'None', medication: 'Yes — all doses', overall: 'Good',                          note: '' },
-      { date: '14 May 2026', time: '08:05 PM', score: 2,  level: 'GREEN',    headache: 'Mild', seizure: 'No', energy: 'Normal', nausea: 'None', medication: 'Yes — all doses', overall: 'Good',                                  note: '' },
-      { date: '13 May 2026', time: '08:18 PM', score: 18, level: 'CRITICAL', headache: 'Severe', seizure: 'Yes — brief', energy: 'Cannot get up', nausea: 'Vomited many times', medication: 'Missed all doses', overall: 'Much worse', note: 'Had a seizure around 7pm, lasted ~1 min' },
-      { date: '12 May 2026', time: '08:00 PM', score: 3,  level: 'GREEN',    headache: 'Mild', seizure: 'No', energy: 'A bit tired', nausea: 'None', medication: 'Yes — all doses', overall: 'Same as usual',                    note: '' },
-      { date: '11 May 2026', time: '08:03 PM', score: 6,  level: 'AMBER',    headache: 'Moderate', seizure: 'No', energy: 'Very tired', nausea: 'Feeling sick', medication: 'Missed one dose', overall: 'Worse than yesterday',  note: 'Forgot evening dose' },
-    ];
-    const DEMO_ALERTS = [
-      { type: 'EMERGENCY', time: '13 May 2026 · 7:52 PM', symptom: 'Seizure reported', detail: 'Seizure — brief · Severity 10/10 · Just now', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-      { type: 'RED ALERT', time: '17 May 2026 · 8:02 PM', symptom: 'High symptom score (12)', detail: 'Severe headache + vomiting + extreme fatigue', color: '#c2410c', bg: '#fff7ed', border: '#fed7aa' },
-      { type: 'SYMPTOM',   time: '16 May 2026 · 2:14 PM', symptom: 'Severe headache reported', detail: 'Headache · Severity 8/10 · Started 1–2 hours ago', color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-      { type: 'AMBER',     time: '16 May 2026 · 8:11 PM', symptom: 'Amber check-in score (5)', detail: 'Moderate headache + fatigue + nausea', color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-      { type: 'AMBER',     time: '11 May 2026 · 8:03 PM', symptom: 'Amber check-in score (6)', detail: 'Moderate headache + missed medication dose', color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-    ];
+    const checkins = (monitoringCheckins || []).map(c => {
+      // transform backend shape to what the UI expects
+      const dt = c.created_at ? new Date(c.created_at) : null;
+      const date = dt ? dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+      const time = dt ? dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+      return {
+        id: c.id,
+        date,
+        time,
+        _dt: dt,
+        _dateKey: dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` : null,
+        score: c.score,
+        level: c.level || (c.emergency ? 'CRITICAL' : 'GREEN'),
+        headache: c.headache,
+        seizure: c.seizure,
+        energy: c.energy,
+        nausea: c.nausea,
+        medication: c.medication,
+        overall: c.overall,
+        note: c.note || '',
+      };
+    });
+    const stats = checkins.reduce((acc, c) => {
+      acc.total += 1;
+      const level = (c.level || '').toUpperCase();
+      if (level === 'GREEN') acc.green += 1;
+      else if (level === 'AMBER') acc.amber += 1;
+      else if (level === 'RED' || level === 'CRITICAL') acc.red += 1;
+      else if (typeof c.score === 'number') {
+        if (c.score >= 12) acc.red += 1;
+        else if (c.score >= 6) acc.amber += 1;
+        else acc.green += 1;
+      }
+      return acc;
+    }, { total: 0, green: 0, amber: 0, red: 0 });
+    const latestCheckin = checkins[0] || null;
+    const daysWithCheckins = new Set(checkins.map(c => c.date)).size;
+    const lastActive = latestCheckin ? `${latestCheckin.date}${latestCheckin.time ? ` · ${latestCheckin.time}` : ''}` : 'No recent activity';
+    const alerts = (monitoringAlerts || []).map(alert => ({
+      type: alert.emergency ? 'EMERGENCY' : 'ALERT',
+      time: alert.created_at ? new Date(alert.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+      symptom: alert.message || 'Emergency submission',
+      detail: alert.reply || 'Sent from mobile app',
+      color: '#dc2626',
+      bg: '#fef2f2',
+      border: '#fecaca',
+    }));
     const levelMeta = l => ({ CRITICAL: { bg: '#4c0519', text: '#fff', label: 'CRITICAL' }, RED: { bg: '#dc2626', text: '#fff', label: 'RED' }, AMBER: { bg: '#f59e0b', text: '#fff', label: 'AMBER' }, GREEN: { bg: '#16a34a', text: '#fff', label: 'GREEN' } }[l] || { bg: '#94a3b8', text: '#fff', label: l });
 
+    const _fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const _byDateKey = {};
+    checkins.forEach(c => { if (c._dateKey) { (_byDateKey[c._dateKey] = _byDateKey[c._dateKey] || []).push(c); } });
+    const _levelOrder = ['GREEN','AMBER','RED','CRITICAL'];
+    const _worstLevel = cks => { let w = -1; cks.forEach(c => { const idx = _levelOrder.indexOf((c.level||'').toUpperCase()); if (idx > w) w = idx; }); return w >= 0 ? _levelOrder[w] : 'GREEN'; };
+    const _enrollDt = enrollmentStatus?.enrolled_at ? new Date(enrollmentStatus.enrolled_at) : null;
+    const _firstCkDt = checkins.length > 0 && checkins[checkins.length-1]?._dt ? checkins[checkins.length-1]._dt : null;
+    const _trackStart = _enrollDt || _firstCkDt;
+    const _todayMid = new Date(); _todayMid.setHours(0, 0, 0, 0);
+    const _todayDow = _todayMid.getDay();
+    const _thisWeekSun = new Date(_todayMid);
+    _thisWeekSun.setDate(_todayMid.getDate() + (_todayDow === 0 ? 0 : 7 - _todayDow));
+    const _calEnd = new Date(_thisWeekSun);
+    _calEnd.setDate(_thisWeekSun.getDate() - calWeeksBack * 7);
+    const _calStart = new Date(_calEnd);
+    _calStart.setDate(_calEnd.getDate() - 27);
+    const _canGoForward = calWeeksBack > 0;
+    const _calCells = (() => {
+      const cells = [];
+      const cur = new Date(_calStart);
+      for (let i = 0; i < 28; i++) {
+        const k = _fmtKey(cur);
+        const dayCks = _byDateKey[k] || [];
+        let st = 'outside';
+        if (cur > _todayMid) {
+          st = 'future';
+        } else if (_trackStart) {
+          const tsm = new Date(_trackStart); tsm.setHours(0, 0, 0, 0);
+          if (cur >= tsm) st = dayCks.length > 0 ? _worstLevel(dayCks) : 'MISSED';
+        } else if (dayCks.length > 0) {
+          st = _worstLevel(dayCks);
+        }
+        cells.push({ d: new Date(cur), key: k, dayCks, status: st });
+        cur.setDate(cur.getDate() + 1);
+      }
+      return cells;
+    })();
+    const _missedCount = _calCells.filter(c => c.status === 'MISSED').length;
+    const _fullLog = (() => {
+      const missed = [];
+      if (_trackStart) {
+        const tsm = new Date(_trackStart); tsm.setHours(0, 0, 0, 0);
+        const yest = new Date(_todayMid); yest.setDate(_todayMid.getDate() - 1);
+        const cur = new Date(yest);
+        while (cur >= tsm) {
+          const k = _fmtKey(cur);
+          if (!_byDateKey[k]) missed.push({ _type: 'missed', _dateKey: k, date: cur.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) });
+          cur.setDate(cur.getDate() - 1);
+        }
+      }
+      return [...checkins.map(c => ({ ...c, _type: 'checkin' })), ...missed]
+        .sort((a, b) => {
+          if (!a._dateKey || !b._dateKey) return 0;
+          if (b._dateKey !== a._dateKey) return b._dateKey.localeCompare(a._dateKey);
+          if (a._type === 'missed') return 1;
+          if (b._type === 'missed') return -1;
+          return ((b._dt || 0) - (a._dt || 0));
+        });
+    })();
+
     const MON_TABS = [
-      { key: 'checkin',  label: 'Check-in history' },
-      { key: 'symptoms', label: 'Symptom reports' },
-      { key: 'chat',     label: 'Chat history' },
-      { key: 'timeline', label: 'Timeline' },
+      { key: 'checkin',        label: 'Check-in history' },
+      { key: 'emergency',      label: 'Emergency' },
+      { key: 'symptom_report', label: 'Symptom report' },
+      { key: 'medication',     label: 'Medication' },
+      { key: 'chat',           label: 'Chat history' },
     ];
 
     return (
@@ -785,30 +948,124 @@ const PatientDetail = () => {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}>NeuroSight Care — Enrolled</div>
-                <div style={{ fontSize: 10, color: '#3b82f6', marginTop: 2 }}>Code: <strong style={{ fontFamily: "'DM Mono',monospace" }}>NS-2026-0042</strong> · Patient · English · Reminder 8:00 PM</div>
-                <div style={{ fontSize: 10, color: '#3b82f6', marginTop: 1 }}>Phone: +94 77 123 4567 · Enrolled 10 May 2026</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e40af' }}>{patient?.name || 'Patient'} — Monitoring</div>
+                <div style={{ fontSize: 10, color: '#3b82f6', marginTop: 2 }}>Code: <strong style={{ fontFamily: "'DM Mono',monospace" }}>{patient?.hospitalId || patient?.hospital_id || '—'}</strong> · Live check-ins · {enrollmentStatus?.reminder_time ? `Reminder ${(() => { const [h, m] = (enrollmentStatus.reminder_time).split(':').map(Number); const p = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${p}`; })()}` : 'Reminder not set'}</div>
+                <div style={{ fontSize: 10, color: '#3b82f6', marginTop: 1 }}>Last active: {enrollmentStatus?.last_active_at ? new Date(enrollmentStatus.last_active_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : lastActive} · Check-ins: {daysWithCheckins} day{daysWithCheckins === 1 ? '' : 's'}</div>
               </div>
             </div>
-            <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: '#16a34a', color: '#fff' }}>Active</span>
+            {/* Enroll / status button — Doctor, Clinician, Super Admin, Assistant */}
+            {['Doctor', 'Clinician', 'Super Admin', 'Assistant'].includes(currentUser.role) && (() => {
+              const st = enrollmentStatus?.status;
+              if (st === 'active') {
+                return <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: '#16a34a', color: '#fff' }}>Active</span>;
+              }
+              if (st === 'sent') {
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 20, background: '#f59e0b', color: '#fff' }}>Link Sent</span>
+                    <button onClick={handleEnroll} disabled={enrolling}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe'; e.currentTarget.style.borderColor = '#93c5fd'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(29,78,216,0.15)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#bfdbfe'; e.currentTarget.style.boxShadow = 'none'; }}
+                      style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                      Resend
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <button onClick={handleEnroll} disabled={enrolling}
+                  style={{ fontSize: 11, fontWeight: 700, padding: '6px 16px', borderRadius: 8, background: enrolling ? '#94a3b8' : '#0d9488', color: '#fff', border: 'none', cursor: enrolling ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
+                  {enrolling ? 'Enrolling…' : 'Enroll'}
+                </button>
+              );
+            })()}
           </div>
         </div>
 
+        {/* Enroll result banner */}
+        {enrollResult && (
+          <div style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${enrollResult.success ? '#bbf7d0' : '#fecaca'}`, background: enrollResult.success ? '#f0fdf4' : '#fef2f2', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: enrollResult.success ? '#15803d' : '#b91c1c' }}>
+              {enrollResult.success ? 'Patient enrolled successfully' : 'Enrollment failed'}
+            </div>
+            {enrollResult.success && (
+              <>
+                {enrollResult.email_sent && <div style={{ fontSize: 10, color: '#15803d' }}>Email sent to patient</div>}
+                {enrollResult.sms_sent && <div style={{ fontSize: 10, color: '#15803d' }}>SMS sent to patient</div>}
+                {!enrollResult.email_sent && !enrollResult.sms_sent && (
+                  <div style={{ fontSize: 10, color: '#92400e' }}>No email/SMS configured — share this link manually:</div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <input readOnly value={enrollResult.link} style={{ flex: 1, fontSize: 10, padding: '4px 8px', border: '1px solid #bbf7d0', borderRadius: 6, background: '#fff', fontFamily: "'DM Mono',monospace", color: '#0f172a' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                    <button onClick={() => { navigator.clipboard.writeText(enrollResult.link); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                      onMouseEnter={e => { if (!linkCopied) { e.currentTarget.style.background = '#0f766e'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(13,148,136,0.35)'; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = linkCopied ? '#15803d' : '#0d9488'; e.currentTarget.style.boxShadow = 'none'; }}
+                      style={{ fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 6, background: linkCopied ? '#15803d' : '#0d9488', color: '#fff', border: 'none', cursor: 'pointer', transition: 'all 0.2s', minWidth: 52, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'center', width: '100%' }}>
+                      {linkCopied
+                        ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied</>
+                        : 'Copy'}
+                    </button>
+                    <button onClick={() => setEnrollResult(null)}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.textDecoration = 'underline'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.textDecoration = 'none'; }}
+                      style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s', letterSpacing: '0.02em' }}>
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Next visit + App usage */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', padding: '10px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>Next visit</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', fontFamily: "'DM Mono',monospace" }}>20 May 2026</span>
-            </div>
-          </div>
+          {(() => {
+            const activeAdm = patientAdmissions.find(a => a.status === 'Active');
+            return (
+              <div style={{ borderRadius: 10, border: `1px solid ${activeAdm ? '#bbf7d0' : '#e2e8f0'}`, background: activeAdm ? '#f0fdf4' : '#fff', padding: '10px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: activeAdm ? '#15803d' : '#64748b', fontWeight: 500 }}>{activeAdm ? 'In hospital' : 'Next visit'}</span>
+                  {activeAdm ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d', fontFamily: "'DM Mono',monospace" }}>
+                      since {activeAdm.admission_date || '—'}
+                    </span>
+                  ) : editingNextVisit ? (
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        value={nextVisitInput}
+                        onChange={e => setNextVisitInput(e.target.value)}
+                        style={{ fontSize: 10, border: '1px solid #cbd5e1', borderRadius: 6, padding: '2px 6px', outline: 'none' }}
+                      />
+                      <button onClick={saveNextVisitDate} style={{ fontSize: 10, padding: '2px 8px', border: 'none', borderRadius: 6, background: '#0d9488', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Save</button>
+                      <button onClick={() => setEditingNextVisit(false)} style={{ fontSize: 10, padding: '2px 6px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', color: '#64748b', cursor: 'pointer' }}>×</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: patient?.next_visit_date ? '#0f172a' : '#94a3b8', fontFamily: "'DM Mono',monospace" }}>
+                        {patient?.next_visit_date || '—'}
+                      </span>
+                      {['Doctor', 'Clinician', 'Super Admin', 'Assistant'].includes(currentUser.role) && (
+                        <button onClick={() => { setNextVisitInput(patient?.next_visit_date || ''); setEditingNextVisit(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <div style={{ borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', padding: '10px 14px' }}>
             <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', marginBottom: 8 }}>App Usage</div>
             {[
-              { label: 'Language',   value: 'Sinhala' },
+              { label: 'Language',   value: ({ en: 'English', si: 'Sinhala', ta: 'Tamil' }[enrollmentStatus?.preferred_language]) || '—' },
               { label: 'User type',  value: 'Patient' },
-              { label: 'Last active',value: 'Today 8:03 PM' },
-              { label: 'Check-ins',  value: '12 of 14 days' },
+              { label: 'Last active',value: enrollmentStatus?.last_active_at ? new Date(enrollmentStatus.last_active_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : lastActive },
+              { label: 'Check-ins',  value: `${daysWithCheckins} day${daysWithCheckins === 1 ? '' : 's'} recorded` },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 5, marginBottom: 5, borderBottom: '1px solid #f1f5f9' }}>
                 <span style={{ fontSize: 10, color: '#64748b' }}>{row.label}</span>
@@ -834,106 +1091,671 @@ const PatientDetail = () => {
         {/* Check-in history */}
         {monitoringSubTab === 'checkin' && (
           <>
+            {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-              {[{ label: 'Total Check-ins', value: 7, bg: '#f8fafc', color: '#475569', border: '#e2e8f0' }, { label: 'GREEN', value: 3, bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }, { label: 'AMBER', value: 2, bg: '#fffbeb', color: '#92400e', border: '#fde68a' }, { label: 'RED / Critical', value: 2, bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }].map(s => (
+              {[
+                { label: 'Total Check-ins', value: stats.total, bg: '#f8fafc', color: '#475569', border: '#e2e8f0' },
+                { label: 'GREEN', value: stats.green, bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
+                { label: 'AMBER', value: stats.amber, bg: '#fffbeb', color: '#92400e', border: '#fde68a' },
+                { label: 'RED / Critical', value: stats.red, bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
+              ].map(s => (
                 <div key={s.label} style={{ padding: '10px 8px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: 10, textAlign: 'center' }}>
                   <div style={{ fontSize: 20, fontWeight: 800, color: s.color, lineHeight: 1.2 }}>{s.value}</div>
                   <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: s.color, opacity: 0.8, marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
+
+            {/* 4-week calendar heatmap */}
+            <div style={{ borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#475569' }}>4-Week Overview</span>
+                  {_missedCount > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>{_missedCount} missed</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace" }}>
+                    {_calStart.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} – {_calCells[_calCells.length-1]?.d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                  <button onClick={() => setCalWeeksBack(w => w + 4)} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, lineHeight: 1 }}>‹</button>
+                  <button onClick={() => setCalWeeksBack(w => Math.max(0, w - 4))} disabled={!_canGoForward} style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #e2e8f0', background: _canGoForward ? '#f8fafc' : '#fafafa', color: _canGoForward ? '#475569' : '#cbd5e1', cursor: _canGoForward ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, lineHeight: 1 }}>›</button>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
+                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+                  <div key={d} style={{ fontSize: 8, fontWeight: 700, color: '#cbd5e1', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{d}</div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+                {_calCells.map((cell, i) => {
+                  const bg = { GREEN: '#16a34a', AMBER: '#f59e0b', RED: '#dc2626', CRITICAL: '#7f1d1d', MISSED: '#e2e8f0', outside: '#f1f5f9', future: '#f1f5f9' }[cell.status] || '#e2e8f0';
+                  const isToday = cell.key === _fmtKey(_todayMid);
+                  const isActive = ['GREEN','AMBER','RED','CRITICAL','MISSED'].includes(cell.status);
+                  const textColor = ['GREEN','AMBER','RED','CRITICAL'].includes(cell.status) ? '#fff' : cell.status === 'MISSED' ? '#64748b' : '#64748b';
+                  const tipLabel = cell.status === 'MISSED' ? 'Missed' : cell.status === 'outside' ? 'Before tracking' : cell.status === 'future' ? 'Upcoming' : cell.status;
+                  return (
+                    <div key={i}
+                      title={`${cell.d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} — ${tipLabel}`}
+                      style={{ height: 22, borderRadius: 4, background: bg, border: isToday ? '2px solid #0d9488' : `1px solid ${isActive ? 'transparent' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 7, fontWeight: 600, color: textColor, userSelect: 'none' }}>{cell.d.getDate()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                {[{ bg: '#16a34a', label: 'Green' }, { bg: '#f59e0b', label: 'Amber' }, { bg: '#dc2626', label: 'Red / Critical' }, { bg: '#e2e8f0', label: 'Missed' }].map(({ bg, label }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: bg }} />
+                    <span style={{ fontSize: 9, color: '#94a3b8' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Daily log */}
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', marginBottom: 8 }}>Daily Check-in Log</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {DEMO_CHECKINS.map((c, i) => {
-                  const lm = levelMeta(c.level);
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {_fullLog.length > 0 ? _fullLog.map((entry, i) => {
+                  if (entry._type === 'missed') {
+                    return (
+                      <div key={`missed-${entry._dateKey}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px', borderRadius: 8, background: '#f8fafc', border: '1px dashed #e2e8f0' }}>
+                        <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 6, background: '#e2e8f0', color: '#94a3b8', flexShrink: 0, letterSpacing: '0.04em' }}>MISSED</span>
+                        <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>{entry.date}</span>
+                        <span style={{ fontSize: 9, color: '#cbd5e1', marginLeft: 'auto', fontStyle: 'italic' }}>No check-in recorded</span>
+                      </div>
+                    );
+                  }
+                  const lm = levelMeta(entry.level);
                   const isOpen = expandedCheckin === i;
                   return (
-                    <div key={i} style={{ borderRadius: 10, border: `1px solid ${c.level === 'CRITICAL' ? '#fecaca' : c.level === 'RED' ? '#fed7aa' : c.level === 'AMBER' ? '#fde68a' : '#bbf7d0'}`, background: c.level === 'CRITICAL' ? '#fff1f2' : c.level === 'RED' ? '#fff7ed' : c.level === 'AMBER' ? '#fffbeb' : '#f0fdf4', overflow: 'hidden' }}>
+                    <div key={`ck-${entry.id || i}`} style={{ borderRadius: 8, border: '1px solid #f1f5f9', borderLeft: `3px solid ${lm.bg}`, background: '#fff', overflow: 'hidden' }}>
                       <div onClick={() => setExpandedCheckin(isOpen ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}>
-                        <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 10, background: lm.bg, color: lm.text, flexShrink: 0 }}>{lm.label}</span>
+                        <span style={{ fontSize: 8, fontWeight: 800, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 6, background: lm.bg, color: lm.text, flexShrink: 0 }}>{lm.label}</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{c.date}</div>
-                          <div style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace" }}>{c.time} · Score: {c.score}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{entry.date}</div>
+                          <div style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace" }}>{entry.time} · Score: {entry.score}</div>
                         </div>
-                        {c.note && <span style={{ fontSize: 9, color: '#64748b', fontStyle: 'italic', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.note}</span>}
-                        <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>{isOpen ? '▲' : '▼'}</span>
+                        {entry.note && <span style={{ fontSize: 9, color: '#64748b', fontStyle: 'italic', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.note}</span>}
+                        <span style={{ fontSize: 11, color: '#cbd5e1', marginLeft: 4 }}>{isOpen ? '▲' : '▼'}</span>
                       </div>
                       {isOpen && (
-                        <div style={{ padding: '0 12px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                          {[{ q: 'Headache', a: c.headache }, { q: 'Seizure', a: c.seizure }, { q: 'Energy', a: c.energy }, { q: 'Nausea', a: c.nausea }, { q: 'Medication', a: c.medication }, { q: 'Overall', a: c.overall }].map(({ q, a }) => (
+                        <div style={{ padding: '0 12px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', borderTop: '1px solid #f8fafc' }}>
+                          {[{ q: 'Headache', a: entry.headache }, { q: 'Seizure', a: entry.seizure }, { q: 'Energy', a: entry.energy }, { q: 'Nausea', a: entry.nausea }, { q: 'Medication', a: entry.medication }, { q: 'Overall', a: entry.overall }].map(({ q, a }) => (
                             <div key={q} style={{ paddingTop: 6 }}>
                               <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{q}</div>
                               <div style={{ fontSize: 11, fontWeight: 600, color: '#334155' }}>{a}</div>
                             </div>
                           ))}
-                          {c.note && (
+                          {entry.note && (
                             <div style={{ gridColumn: '1 / -1', paddingTop: 6 }}>
                               <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Patient Note</div>
-                              <div style={{ fontSize: 11, color: '#334155', fontStyle: 'italic' }}>{c.note}</div>
+                              <div style={{ fontSize: 11, color: '#334155', fontStyle: 'italic' }}>{entry.note}</div>
                             </div>
                           )}
                         </div>
                       )}
                     </div>
                   );
-                })}
+                }) : (
+                  <div style={{ padding: 16, borderRadius: 10, border: '1px dashed #e2e8f0', background: '#f8fafc', color: '#64748b', fontSize: 12, textAlign: 'center' }}>
+                    No check-ins found for this patient.
+                  </div>
+                )}
               </div>
             </div>
           </>
         )}
 
-        {/* Symptom reports */}
-        {monitoringSubTab === 'symptoms' && (
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#dc2626', marginBottom: 8 }}>Recent Alerts <span style={{ background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 10, marginLeft: 4 }}>5</span></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {DEMO_ALERTS.map((a, i) => (
-                <div key={i} style={{ padding: '9px 12px', borderRadius: 10, border: `1px solid ${a.border}`, background: a.bg, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '2px 7px', borderRadius: 10, background: a.color, color: '#fff', flexShrink: 0, marginTop: 1 }}>{a.type}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>{a.symptom}</div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>{a.detail}</div>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: 2 }}>{a.time}</div>
+        {/* Emergency alerts */}
+        {monitoringSubTab === 'emergency' && (() => {
+          const detectSource = (msg) => {
+            const m = msg || '';
+            if (m.startsWith('Symptom report from')) return { label: 'Symptom Report', bg: '#fdf4ff', text: '#7e22ce' };
+            if (/Daily Check.in/i.test(m))             return { label: 'Daily Check-in',  bg: '#eff6ff', text: '#1d4ed8' };
+            if (/Emergency alert from.*GPS/i.test(m)) return { label: 'GPS Emergency',   bg: '#fff7ed', text: '#c2410c' };
+            if (/Emergency alert from/i.test(m))      return { label: 'Emergency Alert', bg: '#fff7ed', text: '#c2410c' };
+            return                                           { label: 'Chat Message',     bg: '#f1f5f9', text: '#475569' };
+          };
+
+          const parseEmergencyMsg = (raw) => {
+            const parts = (raw || '').split(' | ');
+            const fields = {};
+            let title = '';
+            parts.forEach((p, idx) => {
+              if (idx === 0) { title = p; return; }
+              const sep = p.indexOf(':');
+              if (sep > -1) {
+                const k = p.slice(0, sep).trim();
+                const v = p.slice(sep + 1).trim().replace(/\.$/, '');
+                if (k && v) fields[k] = v;
+              }
+            });
+            const isFreeText = parts.length === 1;
+            return { title, fields, isFreeText };
+          };
+
+          const fieldOrder = ['Type', 'Symptom', 'Severity', 'Started', 'Location', 'Ambulance requested', 'Note'];
+          const severityColor = (s) => {
+            const sl = (s || '').toLowerCase();
+            if (sl === 'severe' || sl === 'critical') return { bg: '#4c0519', text: '#fff' };
+            if (sl === 'moderate') return { bg: '#b45309', text: '#fff' };
+            if (sl === 'mild') return { bg: '#f59e0b', text: '#1c1917' };
+            return { bg: '#64748b', text: '#fff' };
+          };
+
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#dc2626' }}>Emergency Alerts</span>
+                <span style={{ background: '#dc2626', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 10 }}>{alerts.length}</span>
+                <button
+                  onClick={() => navigate('/patient-alerts')}
+                  style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Respond
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {alerts.length > 0 ? (monitoringAlerts || []).map((raw, i) => {
+                  const { title, fields, isFreeText } = parseEmergencyMsg(raw.message);
+                  const dt = raw.created_at ? new Date(raw.created_at) : null;
+                  const dateStr = dt ? dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                  const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+                  const alertType = raw.emergency ? 'EMERGENCY' : 'ALERT';
+                  const source = detectSource(raw.message);
+                  const sev = fields['Severity'];
+                  const sevStyle = sev ? severityColor(sev) : null;
+                  const orderedFields = fieldOrder.filter(k => fields[k] !== undefined);
+                  const otherFields = Object.keys(fields).filter(k => !fieldOrder.includes(k) && k !== 'Please review immediately in the web dashboard');
+
+                  return (
+                    <div key={i} style={{ borderRadius: 14, border: '1px solid #fecaca', background: '#fff', overflow: 'hidden' }}>
+                      {/* Card header */}
+                      <div style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 8, background: '#dc2626', color: '#fff' }}>{alertType}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: source.bg, color: source.text }}>{source.label}</span>
+                          {sev && (
+                            <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 8, background: sevStyle.bg, color: sevStyle.text }}>{sev}</span>
+                          )}
+                          {fields['Ambulance requested'] === 'Yes' && (
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: '#7f1d1d', color: '#fef2f2' }}>Ambulance</span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#ef4444', fontFamily: "'DM Mono',monospace", whiteSpace: 'nowrap' }}>
+                          {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                        </span>
+                      </div>
+
+                      {/* Card body */}
+                      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {/* Title row */}
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#7f1d1d' }}>{title}</div>
+
+                        {/* Structured fields */}
+                        {!isFreeText && (orderedFields.length > 0 || otherFields.length > 0) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            {[...orderedFields, ...otherFields].filter(k => k !== 'Severity' && !(k === 'Ambulance requested' && fields[k] === 'Yes')).map(k => (
+                              <div key={k} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', minWidth: 80, flexShrink: 0, paddingTop: 1 }}>{k}</span>
+                                <span style={{ fontSize: 11, color: '#1e293b', fontWeight: 500 }}>{fields[k]}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => navigate('/patient-alerts')}
+                          style={{ alignSelf: 'flex-start', marginTop: 4, fontSize: 10, fontWeight: 700, padding: '5px 13px', borderRadius: 7, border: 'none', background: raw.acknowledged_at ? '#f0fdf4' : '#dc2626', color: raw.acknowledged_at ? '#059669' : '#fff', cursor: 'pointer' }}
+                        >
+                          {raw.acknowledged_at ? 'Responded' : 'Respond to Alert'}
+                        </button>
+
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div style={{ padding: '14px 12px', borderRadius: 10, border: '1px dashed #e2e8f0', background: '#fff', color: '#64748b', fontSize: 12 }}>
+                    No emergency alerts for this patient.
                   </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Symptom reports — non-emergency new symptoms submitted from mobile */}
+        {monitoringSubTab === 'symptom_report' && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#0d9488', marginBottom: 4 }}>
+              Patient-Reported Symptoms
+              <span style={{ background: '#0d9488', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 10, marginLeft: 6 }}>{symptomReports.length}</span>
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+              Irregular symptoms the patient has flagged outside of daily check-in or emergency.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {symptomReports.length > 0 ? symptomReports.map((r, i) => {
+                const dt = r.created_at ? new Date(r.created_at) : null;
+                const dateStr = dt ? dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                const timeStr = dt ? dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+
+                // Parse "New symptom: X, Y | Details: Z" into structured parts
+                const parts = (r.message || '').split(' | ');
+                const symptomLine = parts.find(p => p.startsWith('New symptom:'));
+                const detailLine  = parts.find(p => p.startsWith('Details:'));
+                const symptoms    = symptomLine ? symptomLine.replace('New symptom:', '').trim().split(',').map(s => s.trim()).filter(Boolean) : [];
+                const details     = detailLine  ? detailLine.replace('Details:', '').trim() : '';
+
+                return (
+                  <div key={i} style={{ borderRadius: 14, border: '1px solid #ccfbf1', background: '#fff', overflow: 'hidden' }}>
+                    {/* Coloured header bar */}
+                    <div style={{ background: '#f0fdfa', borderBottom: '1px solid #ccfbf1', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
+                        </svg>
+                        <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0f766e' }}>Symptom Report</span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#5eead4', fontFamily: "'DM Mono',monospace", whiteSpace: 'nowrap' }}>
+                        {dateStr}{timeStr ? ` · ${timeStr}` : ''}
+                      </span>
+                    </div>
+
+                    {/* Body */}
+                    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {/* Symptom chips */}
+                      {symptoms.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', marginBottom: 6 }}>Reported Symptoms</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {symptoms.map((s, si) => (
+                              <span key={si} style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', background: '#ccfbf1', border: '1px solid #99f6e4', borderRadius: 20, padding: '3px 10px' }}>
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Patient description */}
+                      {details && (
+                        <div>
+                          <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', marginBottom: 4 }}>Patient's Description</div>
+                          <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.6, fontStyle: 'italic' }}>"{details}"</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div style={{ padding: '16px 12px', borderRadius: 10, border: '1px dashed #e2e8f0', background: '#f8fafc', color: '#64748b', fontSize: 12, textAlign: 'center' }}>
+                  No symptom reports submitted by this patient yet.
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
 
         {/* Chat history */}
-        {monitoringSubTab === 'chat' && (
-          <div style={{ padding: '28px 0', textAlign: 'center' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>No chat history yet</div>
-            <div style={{ fontSize: 11, color: '#cbd5e1' }}>Messages between the care team and patient will appear here.</div>
-          </div>
-        )}
+        {monitoringSubTab === 'chat' && (() => {
+          if (!chatHistory.length && !chatLoading) {
+            api(`/patients/${patient.id}/chat`).then(data => {
+              setChatHistory(Array.isArray(data) ? data : []);
+              setChatLoading(false);
+            }).catch(() => setChatLoading(false));
+            setChatLoading(true);
+          }
 
-        {/* Timeline */}
-        {monitoringSubTab === 'timeline' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {[...DEMO_CHECKINS].reverse().map((c, i) => {
-              const lm = levelMeta(c.level);
-              return (
-                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: lm.bg, marginTop: 4 }} />
-                    {i < DEMO_CHECKINS.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 24, background: '#e2e8f0', marginTop: 2 }} />}
+          const emergencyCount = chatHistory.filter(m => m.emergency && !/^Emergency alert from/i.test(m.user_message || '')).length;
+
+          const TOPIC_CONFIG = {
+            emergency: { label: 'Emergency', bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+            diagnosis: { label: 'Diagnosis', bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe' },
+            treatment: { label: 'Treatment', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' },
+            nutrition: { label: 'Nutrition', bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+            symptom:   { label: 'Symptoms',  bg: '#fffbeb', text: '#b45309', border: '#fde68a' },
+            general:   { label: 'General',   bg: '#f8fafc', text: '#475569', border: '#e2e8f0' },
+          };
+
+          const fmtTime = dt => dt ? new Date(dt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+          const fmtDate = dt => dt ? new Date(dt).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '';
+
+          const groupByDate = (msgs) => {
+            const groups = [];
+            let lastKey = null;
+            msgs.forEach(msg => {
+              const key = msg.created_at ? new Date(msg.created_at).toDateString() : 'Unknown';
+              if (key !== lastKey) { groups.push({ dateLabel: fmtDate(msg.created_at), items: [] }); lastKey = key; }
+              groups[groups.length - 1].items.push(msg);
+            });
+            return groups;
+          };
+
+          const groups = groupByDate(chatHistory);
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { label: 'Total',     value: chatHistory.length,                     bg: '#f8fafc', color: '#0f172a',  border: '#e2e8f0' },
+                  { label: 'Emergency', value: emergencyCount,                         bg: emergencyCount > 0 ? '#fef2f2' : '#f8fafc', color: emergencyCount > 0 ? '#dc2626' : '#94a3b8', border: emergencyCount > 0 ? '#fecaca' : '#e2e8f0' },
+                  { label: 'Normal',    value: chatHistory.filter(m => !m.emergency).length, bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+                ].map(s => (
+                  <div key={s.label} style={{ padding: '10px 12px', background: s.bg, border: `1px solid ${s.border}`, borderRadius: 10, textAlign: 'center' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: s.color, opacity: 0.75, marginTop: 4, letterSpacing: '0.06em' }}>{s.label}</div>
                   </div>
-                  <div style={{ flex: 1, paddingBottom: 10 }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginBottom: 2 }}>{c.date} · {c.time}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 8, background: lm.bg, color: lm.text, marginRight: 6 }}>{lm.label}</span>
-                      Score {c.score} · {c.overall}
-                    </div>
-                    {c.note && <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>{c.note}</div>}
+                ))}
+              </div>
+
+              {/* Emergency banner */}
+              {emergencyCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>{emergencyCount} emergency message{emergencyCount !== 1 ? 's' : ''} flagged in this conversation</div>
+                    <div style={{ fontSize: 10, color: '#ef4444', marginTop: 1 }}>Patient reported urgent symptoms. Please review the highlighted messages below.</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+
+              {/* Chat window */}
+              {chatLoading ? (
+                <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                  <div style={{ width: 22, height: 22, border: '2px solid #e2e8f0', borderTopColor: '#0d9488', borderRadius: '50%', animation: 'chatSpin 0.8s linear infinite', margin: '0 auto 8px' }} />
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Loading conversation…</div>
+                  <style>{`@keyframes chatSpin{to{transform:rotate(360deg)}}`}</style>
+                </div>
+              ) : chatHistory.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', background: '#f8fafc', borderRadius: 14, border: '1px dashed #e2e8f0' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="1.8" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>No messages yet</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>When this patient uses the care assistant on their mobile app, the conversation will appear here.</div>
+                </div>
+              ) : (
+                <div style={{ background: '#eef2f7', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+
+                  {/* Chat header bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 0 2px rgba(13,148,136,0.18)' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08"/></svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>NeuroSight Care Assistant</div>
+                      <div style={{ fontSize: 10, color: '#0d9488', marginTop: 1 }}>Conversation with {patient.name}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '3px 9px', borderRadius: 20, border: '1px solid #e2e8f0', flexShrink: 0 }}>{chatHistory.length} message{chatHistory.length !== 1 ? 's' : ''}</span>
+                  </div>
+
+                  {/* Message scroll area */}
+                  <div style={{ maxHeight: 500, overflowY: 'auto', padding: '16px 14px 10px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {groups.map((group, gi) => (
+                      <div key={gi}>
+                        {/* Date divider */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: gi === 0 ? '0 0 16px' : '8px 0 16px' }}>
+                          <div style={{ flex: 1, height: 1, background: '#d1d5db' }} />
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#6b7280', background: '#dce3ec', padding: '3px 11px', borderRadius: 20, whiteSpace: 'nowrap' }}>{group.dateLabel}</span>
+                          <div style={{ flex: 1, height: 1, background: '#d1d5db' }} />
+                        </div>
+
+                        {group.items.map(msg => {
+                          const tc = TOPIC_CONFIG[msg.topic] || TOPIC_CONFIG.general;
+                          const isEmergency = msg.emergency;
+                          return (
+                            <div key={msg.id} style={{ marginBottom: 20 }}>
+
+                              {/* Emergency strip */}
+                              {isEmergency && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '5px 11px', background: '#dc2626', borderRadius: 8 }}>
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Emergency Message</span>
+                                </div>
+                              )}
+
+                              {/* Topic + timestamp row */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', padding: '2px 9px', borderRadius: 20, background: tc.bg, color: tc.text, border: `1px solid ${tc.border}`, letterSpacing: '0.06em' }}>{tc.label}</span>
+                                <span style={{ fontSize: 10, color: '#6b7280', fontFamily: "'DM Mono',monospace" }}>{fmtTime(msg.created_at)}</span>
+                              </div>
+
+                              {/* Patient bubble — right-aligned */}
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                                <div style={{ maxWidth: '84%' }}>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: isEmergency ? '#dc2626' : '#0d9488', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', marginBottom: 4 }}>{patient.name}</div>
+                                  <div style={{ background: isEmergency ? '#dc2626' : '#0d9488', color: '#fff', borderRadius: '16px 16px 4px 16px', padding: '11px 15px', fontSize: 13, lineHeight: 1.6, boxShadow: isEmergency ? '0 2px 8px rgba(220,38,38,0.22)' : '0 2px 8px rgba(13,148,136,0.18)', wordBreak: 'break-word' }}>
+                                    {msg.user_message}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Bot reply — left-aligned */}
+                              <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                                <div style={{ width: 28, height: 28, borderRadius: 8, background: isEmergency ? '#dc2626' : 'linear-gradient(135deg,#0d9488,#0f766e)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, boxShadow: '0 1px 4px rgba(0,0,0,0.14)' }}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5"/></svg>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 9, fontWeight: 700, color: isEmergency ? '#dc2626' : '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Care Assistant</div>
+                                  <div style={{ background: isEmergency ? '#fff5f5' : '#fff', color: isEmergency ? '#7f1d1d' : '#334155', borderRadius: 10, padding: '11px 15px', fontSize: 13, lineHeight: 1.65, border: `1px solid ${isEmergency ? '#fecaca' : '#e2e8f0'}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', wordBreak: 'break-word' }}>
+                                    {msg.bot_reply}
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Footer note */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#fff', borderTop: '1px solid #e2e8f0' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Read-only view of the patient's conversations with the NeuroSight care assistant.</span>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Medication adherence */}
+        {monitoringSubTab === 'medication' && (() => {
+          const { medications: meds, logs } = medAdherence;
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          const slotName = s => ({ '08:00':'Morning','12:00':'Noon','13:00':'Afternoon','18:00':'Evening','21:00':'Night' }[s] || s);
+          const takenSet = new Set((logs || []).map(l => `${l.plan_id}-${l.med_index}-${l.slot}-${l.taken_date}`));
+          const buildWindow = (daysBack) => {
+            const arr = [];
+            for (let i = daysBack + 13; i >= daysBack; i--) {
+              const d = new Date(); d.setDate(d.getDate() - i);
+              arr.push(d.toISOString().slice(0, 10));
+            }
+            return arr;
+          };
+          const fmtRange = (dates) => {
+            const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+            return `${fmt(dates[0])} – ${fmt(dates[dates.length - 1])}`;
+          };
+
+          if (!meds || meds.length === 0) {
+            return (
+              <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>No medication data available</div>
+                <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 6 }}>Add medications to this patient's treatment plan in the Management tab.</div>
+              </div>
+            );
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Legend */}
+              <div style={{ display: 'flex', gap: 14, fontSize: 10, color: '#64748b', alignItems: 'center', flexWrap: 'wrap', padding: '6px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                {[['#16a34a', null, 'Taken'], ['#fca5a5', '#f87171', 'Missed'], ['#fef08a', '#fbbf24', 'Today (pending)'], ['#f1f5f9', '#e2e8f0', 'Upcoming']].map(([bg, border, label]) => (
+                  <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border || bg}`, display: 'inline-block', flexShrink: 0 }} />
+                    {label}
+                  </span>
+                ))}
+                <span style={{ marginLeft: 'auto', color: '#94a3b8', fontStyle: 'italic' }}>Last 14 days</span>
+              </div>
+
+              {meds.map((med, mi) => {
+                const daysBack = medOffsets[mi] || 0;
+                const window14 = buildWindow(daysBack);
+                let totalSlots = 0, takenCount = 0;
+                window14.forEach(d => {
+                  (med.slots || []).forEach(slot => {
+                    const key = `${med.plan_id}-${med.med_index}-${slot}-${d}`;
+                    if (d <= todayStr) { totalSlots++; if (takenSet.has(key)) takenCount++; }
+                  });
+                });
+                const pct = totalSlots > 0 ? Math.round((takenCount / totalSlots) * 100) : null;
+                const pctColor = pct === null ? '#94a3b8' : pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : '#dc2626';
+                const atPresent = daysBack === 0;
+                const navBtn = (disabled, onClick, dir) => (
+                  <button onClick={onClick} disabled={disabled} style={{
+                    width: 26, height: 26, borderRadius: 6, border: '1px solid #e2e8f0',
+                    background: disabled ? '#f8fafc' : '#fff', color: disabled ? '#cbd5e1' : '#475569',
+                    cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      {dir === 'left' ? <polyline points="15 18 9 12 15 6"/> : <polyline points="9 18 15 12 9 6"/>}
+                    </svg>
+                  </button>
+                );
+
+                return (
+                  <div key={mi} style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#fff', padding: '14px 16px', overflow: 'hidden' }}>
+                    {/* Med header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{med.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                          {med.dosage && <span style={{ fontSize: 11, color: '#64748b' }}>{med.dosage}</span>}
+                          {med.food && (
+                            <span style={{ fontSize: 9, fontWeight: 700, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '1px 7px', color: '#16a34a' }}>
+                              {med.food === 'before' ? 'Before food' : med.food === 'after' ? 'After food' : med.food}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 3 }}>Plan: {med.plan_title}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                        {pct !== null && (
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: pctColor, lineHeight: 1 }}>{pct}%</div>
+                            <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>adherence</div>
+                            <div style={{ fontSize: 9, color: '#cbd5e1' }}>{takenCount}/{totalSlots} doses</div>
+                          </div>
+                        )}
+                        {/* Navigation */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {navBtn(false, () => setMedOffsets(p => ({ ...p, [mi]: daysBack + 14 })), 'left')}
+                          <span style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap', minWidth: 110, textAlign: 'center' }}>
+                            {fmtRange(window14)}
+                          </span>
+                          {navBtn(atPresent, () => setMedOffsets(p => ({ ...p, [mi]: Math.max(0, daysBack - 14) })), 'right')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {(med.slots || []).length === 0 ? (
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>No reminder times set for this medication.</div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        {/* Day-of-week + date header */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 8, paddingLeft: 86 }}>
+                          {window14.map((d, di) => {
+                            const dt = new Date(d + 'T12:00:00');
+                            const isToday = d === todayStr;
+                            const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+                            return (
+                              <div key={di} style={{ width: 32, flexShrink: 0, textAlign: 'center', marginRight: di === 6 ? 10 : 3 }}>
+                                <div style={{ fontSize: 8, fontWeight: 600, textTransform: 'uppercase', color: isToday ? '#0d9488' : isWeekend ? '#94a3b8' : '#cbd5e1' }}>
+                                  {DOW[dt.getDay()].slice(0, 2)}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: isToday ? 800 : 500, color: isToday ? '#0d9488' : '#64748b', lineHeight: 1.2 }}>
+                                  {dt.getDate()}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Slot rows */}
+                        {(med.slots || []).map((slot, si) => (
+                          <div key={si} style={{ display: 'flex', alignItems: 'center', marginTop: si > 0 ? 8 : 0 }}>
+                            {/* Slot label */}
+                            <div style={{ width: 86, flexShrink: 0, paddingRight: 10 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{slotName(slot)}</div>
+                              <div style={{ fontSize: 9, color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: 1 }}>{slot}</div>
+                            </div>
+
+                            {/* Cells */}
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              {window14.map((d, di) => {
+                                const key = `${med.plan_id}-${med.med_index}-${slot}-${d}`;
+                                const isTaken = takenSet.has(key);
+                                const isPast  = d < todayStr;
+                                const isToday = d === todayStr;
+                                let bg, border;
+                                if (isTaken)       { bg = '#16a34a'; border = '#15803d'; }
+                                else if (isToday)  { bg = '#fef08a'; border = '#fbbf24'; }
+                                else if (isPast)   { bg = '#fca5a5'; border = '#f87171'; }
+                                else               { bg = '#f1f5f9'; border = '#e2e8f0'; }
+                                const status = isTaken ? 'Taken' : isToday ? 'Pending' : isPast ? 'Missed' : 'Upcoming';
+                                return (
+                                  <div key={di} title={`${d}: ${status}`} style={{
+                                    width: 32, height: 30, borderRadius: 7, flexShrink: 0,
+                                    background: bg, border: `1px solid ${border}`,
+                                    marginRight: di === 6 ? 10 : 3,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}>
+                                    {isTaken && (
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                      </svg>
+                                    )}
+                                    {isPast && !isTaken && (
+                                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                      </svg>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', paddingTop: 2 }}>
+                Recorded when the patient marks doses as taken in the NeuroSight mobile app.
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     );

@@ -129,6 +129,7 @@ export default function DashboardLayout({ user, onLogout, onUserUpdate }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+
   return (
     <div style={{ background: "var(--ns-bg)", fontFamily: "'DM Sans', sans-serif" }}>
 

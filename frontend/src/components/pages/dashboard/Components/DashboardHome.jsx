@@ -57,10 +57,24 @@ function StatusBadge({ label, map }) {
   );
 }
 
-const TH = { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ns-text-3)", padding: "0 12px 10px", whiteSpace: "nowrap" };
+const TH = { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ns-text-3)", padding: "0 12px 10px", whiteSpace: "nowrap", textAlign: "left" };
+const TH_C = { ...TH, textAlign: "center" };
 const TD = { fontSize: 13, padding: "11px 12px", borderTop: "1px solid var(--ns-border)", verticalAlign: "middle" };
+const TD_C = { ...TD, textAlign: "center" };
 
-function WorklistPanel({ worklist, loading, navigate }) {
+function EmergencyCell({ count }) {
+  if (!count) return <span style={{ fontSize: 11, color: "var(--ns-text-3)" }}>—</span>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "#fef2f2", color: "#b91c1c", whiteSpace: "nowrap" }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      {count}
+    </span>
+  );
+}
+
+function WorklistPanel({ worklist, loading, alertCounts, navigate }) {
   return (
     <div style={{ ...S.card, padding: "24px 0 0" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px 16px" }}>
@@ -74,22 +88,31 @@ function WorklistPanel({ worklist, loading, navigate }) {
       </div>
 
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "26%" }} />
+            <col style={{ width: "19%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "16%" }} />
+          </colgroup>
           <thead>
             <tr>
               <th style={{ ...TH, paddingLeft: 28 }}>Patient</th>
               <th style={TH}>Tumour</th>
-              <th style={TH}>Scan</th>
-              <th style={TH}>Plan</th>
-              <th style={{ ...TH, paddingRight: 28 }}>Admission</th>
+              <th style={TH_C}>Scan</th>
+              <th style={TH_C}>Plan</th>
+              <th style={TH_C}>Admission</th>
+              <th style={{ ...TH_C, padding: "0 28px 10px 12px", color: "#dc2626" }}>Emergency</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
-                  {[140, 90, 80, 70, 80].map((w, j) => (
-                    <td key={j} style={{ ...TD, paddingLeft: j === 0 ? 28 : 12, paddingRight: j === 4 ? 28 : 12 }}>
+                  {[140, 90, 80, 70, 80, 50].map((w, j) => (
+                    <td key={j} style={{ ...TD, padding: j === 0 ? "11px 12px 11px 28px" : j === 5 ? "11px 28px 11px 12px" : "11px 12px" }}>
                       <Skeleton h={14} w={w} r={4} />
                     </td>
                   ))}
@@ -97,30 +120,34 @@ function WorklistPanel({ worklist, loading, navigate }) {
               ))
             ) : worklist.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ ...TD, textAlign: "center", padding: "32px 0", color: "var(--ns-text-3)", fontSize: 13 }}>
+                <td colSpan={6} style={{ ...TD, textAlign: "center", padding: "32px 0", color: "var(--ns-text-3)", fontSize: 13 }}>
                   No patients yet
                 </td>
               </tr>
             ) : (
-              worklist.map(row => (
-                <tr
-                  key={row.patient_id}
-                  className="log-item"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/patients/${row.patient_id}`, { state: { mode: "edit" } })}
-                >
-                  <td style={{ ...TD, paddingLeft: 28 }}>
-                    <div style={{ fontWeight: 600, color: "var(--ns-text)", fontSize: 13 }}>{row.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--ns-text-3)", marginTop: 2, fontFamily: "'DM Mono', monospace" }}>{row.hospital_id}</div>
-                  </td>
-                  <td style={TD}>
-                    <span style={{ fontSize: 12, color: "var(--ns-text-2)" }}>{row.tumour_type}</span>
-                  </td>
-                  <td style={TD}><StatusBadge label={row.scan_status} map={SCAN_BADGE} /></td>
-                  <td style={TD}><StatusBadge label={row.plan_status} map={PLAN_BADGE} /></td>
-                  <td style={{ ...TD, paddingRight: 28 }}><StatusBadge label={row.admission_status} map={ADM_BADGE} /></td>
-                </tr>
-              ))
+              worklist.map(row => {
+                const alertCount = alertCounts[String(row.patient_id)] || 0;
+                return (
+                  <tr
+                    key={row.patient_id}
+                    className="log-item"
+                    style={{ cursor: "pointer", background: alertCount > 0 ? "#fff9f9" : undefined }}
+                    onClick={() => navigate(`/patients/${row.patient_id}`, { state: { mode: "edit" } })}
+                  >
+                    <td style={{ ...TD, paddingLeft: 28 }}>
+                      <div style={{ fontWeight: 600, color: "var(--ns-text)", fontSize: 13 }}>{row.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--ns-text-3)", marginTop: 2, fontFamily: "'DM Mono', monospace" }}>{row.hospital_id}</div>
+                    </td>
+                    <td style={TD}>
+                      <span style={{ fontSize: 12, color: "var(--ns-text-2)" }}>{row.tumour_type}</span>
+                    </td>
+                    <td style={TD_C}><StatusBadge label={row.scan_status} map={SCAN_BADGE} /></td>
+                    <td style={TD_C}><StatusBadge label={row.plan_status} map={PLAN_BADGE} /></td>
+                    <td style={TD_C}><StatusBadge label={row.admission_status} map={ADM_BADGE} /></td>
+                    <td style={{ ...TD_C, padding: "11px 28px 11px 12px" }}><EmergencyCell count={alertCount} /></td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -132,10 +159,11 @@ function WorklistPanel({ worklist, loading, navigate }) {
 export default function DashboardHome() {
   const { user } = useOutletContext();
   const navigate = useNavigate();
-  const [summary, setSummary]   = useState(null);
-  const [logs, setLogs]         = useState([]);
-  const [worklist, setWorklist] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [summary, setSummary]     = useState(null);
+  const [logs, setLogs]           = useState([]);
+  const [worklist, setWorklist]   = useState([]);
+  const [alertCounts, setAlertCounts] = useState({});
+  const [loading, setLoading]     = useState(true);
 
   const role     = user?.role || "";
   const isAdmin  = ["Super Admin", "Admin"].includes(role);
@@ -152,13 +180,23 @@ export default function DashboardHome() {
     let live = true;
     setLoading(true);
     const fetches = isAdmin
-      ? [api("/dashboard/summary").catch(() => null), api("/dashboard/audit-logs").catch(() => []), Promise.resolve([])]
-      : [api("/dashboard/summary").catch(() => null), Promise.resolve([]), api("/dashboard/worklist").catch(() => [])];
-    Promise.all(fetches).then(([s, l, w]) => {
+      ? [api("/dashboard/summary").catch(() => null), api("/dashboard/audit-logs").catch(() => []), Promise.resolve([]), api("/dashboard/patient-alerts?limit=100").catch(() => [])]
+      : [api("/dashboard/summary").catch(() => null), Promise.resolve([]), api("/dashboard/worklist").catch(() => []), api("/dashboard/patient-alerts?limit=100").catch(() => [])];
+    Promise.all(fetches).then(([s, l, w, alerts]) => {
       if (!live) return;
       setSummary(s);
       setLogs(Array.isArray(l) ? l.slice(0, 6) : []);
       setWorklist(Array.isArray(w) ? w : []);
+      if (Array.isArray(alerts)) {
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        const counts = {};
+        alerts.forEach(a => {
+          if (!a.created_at || new Date(a.created_at).getTime() < cutoff) return;
+          const pid = String(a.patient_id);
+          counts[pid] = (counts[pid] || 0) + 1;
+        });
+        setAlertCounts(counts);
+      }
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [isAdmin]);
@@ -292,7 +330,7 @@ export default function DashboardHome() {
             )}
           </div>
         ) : (
-          <WorklistPanel worklist={worklist} loading={loading} navigate={navigate} />
+          <WorklistPanel worklist={worklist} loading={loading} alertCounts={alertCounts} navigate={navigate} />
         )}
 
         {/* Right column */}
