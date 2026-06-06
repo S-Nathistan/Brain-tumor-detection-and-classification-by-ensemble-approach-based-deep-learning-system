@@ -1,7 +1,7 @@
 {
-  "contractAddress": "0xdFAa18F7066A1eCb2e7721CFFC1Ae3431d91F40C",
+  "contractAddress": "0xA1F6C0a26B0a50adDE4cb33b4465CEf9Ce4cA3aD",
   "network": "ganache",
-  "deployedAt": "2026-05-27T17:57:18.980Z",
+  "deployedAt": "2026-05-28T20:16:09.381Z",
   "abi": [
     {
       "type": "event",
