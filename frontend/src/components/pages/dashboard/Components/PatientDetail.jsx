@@ -1957,7 +1957,12 @@ const PatientDetail = () => {
     );
   };
 
-  const renderBlockchainTab = () => <BlockchainRecordsTab patientId={patient.id} />;
+  const renderBlockchainTab = () => (
+    <BlockchainRecordsTab
+      patientId={patient.id}
+      onAddNote={() => setBlockchainOpen(true)}
+    />
+  );
 
   const TABS = [
     { key: 'admissions',    label: 'Admissions',    color: '#7c3aed' },
@@ -2032,7 +2037,6 @@ const PatientDetail = () => {
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={handlePrintCard} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#f1f5f9", color: "#374151", border: "1px solid #e2e8f0", cursor: "pointer" }}>Print Card</button>
           {!isAdmin && <button onClick={handleUploadClick} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#f0fdfa", color: "#0d9488", border: "1px solid #ccfbf1", cursor: "pointer" }}>Upload MRI</button>}
-          <button onClick={() => setBlockchainOpen(true)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", cursor: "pointer" }}>⛓ Save to Blockchain</button>
           <button onClick={handleNewAdmission} disabled={admissionLoading || patientAdmissions.some(a => a.status === 'Active')}
             title={patientAdmissions.some(a => a.status === 'Active') ? 'Discharge the active admission before creating a new one' : ''}
             style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 7, background: patientAdmissions.some(a => a.status === 'Active') ? "#f1f5f9" : "#f0fdf4", color: patientAdmissions.some(a => a.status === 'Active') ? "#94a3b8" : "#0d9488", border: `1px solid ${patientAdmissions.some(a => a.status === 'Active') ? "#e2e8f0" : "#bbf7d0"}`, cursor: patientAdmissions.some(a => a.status === 'Active') ? "not-allowed" : "pointer", opacity: admissionLoading ? 0.6 : 1 }}>

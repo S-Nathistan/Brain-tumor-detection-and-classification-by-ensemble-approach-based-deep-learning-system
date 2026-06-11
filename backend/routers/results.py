@@ -18,9 +18,103 @@ from backend.core.security import get_current_active_user
 from backend.core import jobs as xai_jobs
 from backend.models.patient import Patient
 from backend.models.user import User
+from blockchain.medical_history_chain import (
+    encrypt_data, upload_to_pinata, send_hash_to_blockchain, load_deployment
+)
 
 router = APIRouter(prefix="/results", tags=["results"])
 logger = logging.getLogger(__name__)
+
+
+def _build_record_text(patient: Patient, result: Result, confirmer_name: str) -> str:
+    """Assemble a structured plaintext record from all available patient + result data."""
+    lines = [
+        "=== NeuroSight Medical Record ===",
+        f"Patient ID      : {patient.hospital_id}",
+        f"Name            : {patient.name}",
+        f"Age             : {patient.age or 'N/A'}",
+        f"Gender          : {patient.gender or 'N/A'}",
+        f"Occupation      : {patient.occupation or 'N/A'}",
+        f"Location        : {patient.from_location or 'N/A'}",
+        "",
+        "--- MRI Analysis ---",
+        f"Result ID       : #{result.id}",
+        f"AI Prediction   : {result.predicted_label} ({result.confidence * 100:.1f}% confidence)",
+        f"Confirmed Dx    : {result.confirmed_label or 'Pending'}",
+        f"Pathology Grade : {result.pathology_grade or 'N/A'}",
+        f"Confirmed By    : {confirmer_name}",
+        f"Confirmed At    : {result.confirmed_at.isoformat() if result.confirmed_at else 'N/A'}",
+        f"Scan File       : {result.filename}",
+        "",
+        "--- Medical History ---",
+    ]
+
+    fields = [
+        ("Presenting Complaint",  patient.presenting_complaint),
+        ("Symptoms",              patient.symptoms),
+        ("Symptom Analysis",      patient.symptom_analysis),
+        ("Differential Analysis", patient.differential_analysis),
+        ("Complications",         patient.complications),
+        ("Risk Factors",          patient.risk_factor),
+        ("Systemic Review",       patient.systemic_review),
+        ("Past Medical History",  patient.past_medical_history),
+        ("Family History",        patient.family_history),
+        ("Social History",        patient.social_history),
+        ("Allergy History",       patient.allergy_history),
+        ("Examination Findings",  patient.examination_findings),
+        ("Muscle Power",          patient.muscle_power),
+        ("Reflex",                patient.reflex),
+        ("Doctor Notes",          patient.doctor_notes),
+    ]
+    for label, value in fields:
+        if value and str(value).strip():
+            lines.append(f"{label:<25}: {value.strip()}")
+
+    lines += [
+        "",
+        f"Tumour Type     : {patient.tumour_type or 'N/A'}",
+        f"Risk Score      : {patient.risk_score or 'N/A'}",
+        f"Record Generated: {datetime.now(timezone.utc).isoformat()}",
+    ]
+    return "\n".join(lines)
+
+
+def _blockchain_write_task(patient_id: int, result_id: int) -> None:
+    """Background task — runs in threadpool, uses its own DB session."""
+    cfg = settings
+    if not all([cfg.FERNET_KEY, cfg.PINATA_API_KEY, cfg.PINATA_SECRET_KEY, cfg.ETH_PRIVATE_KEY]):
+        logger.warning("Blockchain not configured — skipping auto-write for result #%d", result_id)
+        return
+
+    db = SessionLocal()
+    try:
+        result  = db.query(Result).filter(Result.id == result_id).first()
+        patient = db.query(Patient).filter(Patient.id == patient_id).first()
+        if not result or not patient:
+            logger.error("Blockchain task: result or patient not found (result_id=%d)", result_id)
+            return
+
+        confirmer_name = result.confirmer.name if result.confirmer else "Unknown"
+        record_text    = _build_record_text(patient, result, confirmer_name)
+        chain_id       = str(patient.hospital_id)
+
+        contract_address, abi = load_deployment()
+        ciphertext = encrypt_data(record_text, cfg.FERNET_KEY.encode())
+        ipfs_hash  = upload_to_pinata(ciphertext, chain_id, cfg.PINATA_API_KEY, cfg.PINATA_SECRET_KEY)
+        receipt    = send_hash_to_blockchain(chain_id, ipfs_hash, cfg.ETH_PRIVATE_KEY, contract_address, abi)
+        tx_hash    = receipt["transactionHash"].hex()
+
+        log_event(
+            db, "Blockchain Auto-Write",
+            user_id=result.confirmed_by,
+            ip="system",
+            details=f"Result #{result_id} anchored | tx: {tx_hash} | cid: {ipfs_hash}",
+        )
+        logger.info("Blockchain write OK — result #%d | tx: %s", result_id, tx_hash)
+    except Exception as exc:
+        logger.error("Blockchain auto-write failed for result #%d: %s", result_id, exc, exc_info=True)
+    finally:
+        db.close()
 
 _LABEL_MAP = {
     "glioma":      "Glioma",
@@ -239,6 +333,7 @@ def confirm_result(
     result_id: int,
     body: ConfirmRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -264,6 +359,10 @@ def confirm_result(
         )
     except Exception:
         pass
+
+    # Auto-write full patient record + confirmed MRI result to blockchain
+    if r.patient_id:
+        background_tasks.add_task(_blockchain_write_task, r.patient_id, r.id)
 
     return r
 

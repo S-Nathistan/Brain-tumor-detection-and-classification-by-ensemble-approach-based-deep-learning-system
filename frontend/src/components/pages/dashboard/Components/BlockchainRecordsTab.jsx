@@ -3,7 +3,7 @@ import { api } from "../../../../util";
 
 const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 
-export default function BlockchainRecordsTab({ patientId }) {
+export default function BlockchainRecordsTab({ patientId, onAddNote }) {
   const [records, setRecords] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
@@ -48,14 +48,26 @@ export default function BlockchainRecordsTab({ patientId }) {
             Immutable entries anchored on Ethereum testnet · encrypted blobs pinned on IPFS
           </div>
         </div>
-        <span style={badge("#1d4ed8")}>
-          {records.count} {records.count === 1 ? "record" : "records"}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={badge("#1d4ed8")}>
+            {records.count} {records.count === 1 ? "record" : "records"}
+          </span>
+          {onAddNote && (
+            <button onClick={onAddNote}
+              style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 7, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", cursor: "pointer" }}>
+              + Add Note
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: "8px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 11, color: "#15803d" }}>
+        Records are written automatically when a doctor confirms an MRI diagnosis. Use "+ Add Note" for manual entries.
       </div>
 
       {records.count === 0 ? (
         <div style={{ background: "var(--ns-surface,#fff)", border: "1px solid #e2e8f0", borderRadius: 12, padding: "32px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-          No blockchain records yet. Use "⛓ Save to Blockchain" to create one.
+          No blockchain records yet. Records appear here after a doctor confirms an MRI result.
         </div>
       ) : (
         records.cids.map((cid, idx) => (
