@@ -53,3 +53,8 @@ backend/tumor_models/*.keras
 # Local runtime PID tracking (start/stop-system.ps1)
 .neurosight-pids.json
 testing/.env.test
+
+# Datasets and test run artifacts
+dataset/
+testing/*
+!testing/evaluate_wavefusionnet.py
