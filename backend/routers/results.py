@@ -309,6 +309,10 @@ def upload_scan(
 
     try:
         raw_label, conf = predict(str(dst))
+    except ValueError as exc:
+        # Unreadable / corrupt / non-image upload — a client error, not a server error.
+        dst.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
         dst.unlink(missing_ok=True)
         raise HTTPException(status_code=503, detail=str(exc))

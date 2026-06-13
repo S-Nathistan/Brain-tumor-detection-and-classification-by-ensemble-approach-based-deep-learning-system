@@ -1,0 +1,632 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1781334016.129327   19752 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1781334017.825097   19752 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+INFO:     Started server process [6136]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+Checking users table…
+  'name' already exists on users
+  'role' already exists on users
+  'mobile' already exists on users
+  'status' already exists on users
+  'password_reset_token_hash' already exists on users
+  'password_reset_token_expires_at' already exists on users
+  'department' already exists on users
+  'qualification' already exists on users
+  'license_number' already exists on users
+  'gender' already exists on users
+  'profile_picture' already exists on users
+Checking patients table…
+  'doctor_notes' already exists on patients
+  'scan_report' already exists on patients
+  'updated_at' already exists on patients
+  'presenting_complaint' already exists on patients
+  'symptom_analysis' already exists on patients
+  'differential_analysis' already exists on patients
+  'complications' already exists on patients
+  'risk_factor' already exists on patients
+  'systemic_review' already exists on patients
+  'past_medical_history' already exists on patients
+  'family_history' already exists on patients
+  'social_history' already exists on patients
+  'allergy_history' already exists on patients
+  'examination_findings' already exists on patients
+  'muscle_power' already exists on patients
+  'reflex' already exists on patients
+  'assigned_doctor_id' already exists on patients
+  'from_location' already exists on patients
+  'occupation' already exists on patients
+  'next_visit_date' already exists on patients
+Checking admissions table…
+  admissions table already exists
+Checking documents table…
+  'description' already exists on documents
+  'admission_id' already exists on documents
+Checking results table…
+  'patient_id' already exists on results
+  'admission_id' already exists on results
+  'confirmed_label' already exists on results
+  'pathology_grade' already exists on results
+  'confirmed_by' already exists on results
+  'confirmed_at' already exists on results
+  'xai_report' already exists on results
+Checking treatment_plans table…
+  'admission_id' already exists on treatment_plans
+Checking caretakers table…
+  caretakers table already exists
+Checking checkins table…
+  checkins table already exists
+  'sleep' already exists on checkins
+  'appetite' already exists on checkins
+Checking chat_messages table…
+  chat_messages table already exists
+Checking enrollments table…
+  'preferred_language' already exists on enrollments
+  'reminder_time' already exists on enrollments
+  'last_active_at' already exists on enrollments
+DB update complete.
+INFO:     127.0.0.1:52777 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57510 - "POST /auth/signup HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57520 - "POST /auth/register HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57520 - "POST /auth/register HTTP/1.1" 403 Forbidden
+SMTP not configured; skipping email delivery to recipient=qa_auth02_166abc5ee6@example.com
+INFO:     127.0.0.1:57520 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57520 - "DELETE /auth/users/21 HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:57515 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57525 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57525 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57525 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+SMTP not configured; skipping email delivery to recipient=qa_6de4d59f22af@example.com
+INFO:     127.0.0.1:57515 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57530 - "PUT /auth/users/22 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57530 - "POST /auth/login HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57530 - "GET /patients HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57515 - "DELETE /auth/users/22 HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:57534 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57539 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57539 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57539 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57543 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+SMTP not configured; skipping email delivery to recipient=qa_08d24e3c0cfc@example.com
+INFO:     127.0.0.1:57515 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "DELETE /auth/users/23 HTTP/1.1" 204 No Content
+SMTP not configured; skipping email delivery to recipient=admin@neurosight.ai
+INFO:     127.0.0.1:57549 - "POST /auth/forgot-password HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57549 - "POST /auth/forgot-password HTTP/1.1" 200 OK
+SMTP not configured; skipping email delivery to recipient=qa_9ebafa946b9d@example.com
+INFO:     127.0.0.1:57515 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57553 - "PUT /auth/me HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57553 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "DELETE /auth/users/24 HTTP/1.1" 204 No Content
+SMTP not configured; skipping email delivery to recipient=qa_6f1f5efc2fa8@example.com
+INFO:     127.0.0.1:57515 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "DELETE /auth/users/25 HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:57559 - "DELETE /auth/users/7 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57559 - "PUT /auth/users/7 HTTP/1.1" 400 Bad Request
+SMTP not configured; skipping email delivery to recipient=qa_38b5e18427b5@example.com
+INFO:     127.0.0.1:57515 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57563 - "PUT /auth/users/26 HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:57563 - "PUT /auth/users/26 HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:57563 - "PUT /auth/users/26 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "DELETE /auth/users/26 HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:57567 - "GET /auth/users HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57567 - "GET /dashboard/audit-logs HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57567 - "GET /dashboard/user-roles HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57567 - "DELETE /auth/users/7 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57567 - "POST /auth/register HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57515 - "GET /patients HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57571 - "POST /treatment-plans HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57571 - "PUT /treatment-plans/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57571 - "DELETE /treatment-plans/1 HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57575 - "GET /results/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57575 - "GET /results/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57579 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57579 - "GET /results/patient/9 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57515 - "POST /patients HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57583 - "DELETE /patients/10 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column chat_messages.acknowledged_by does not exist
+LINE 1: ..._messages.created_at AS chat_messages_created_at, chat_messa...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1160, in __call__
+    await super().__call__(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 130, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 116, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 670, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 326, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2502, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 986, in run
+    result = context.run(func, *args)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\routers\patients.py", line 275, in delete_patient
+    db.delete(db_patient)
+    ~~~~~~~~~^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3528, in delete
+    self._delete_impl(state, instance, head=True)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3555, in _delete_impl
+    cascade_states = list(
+        state.manager.mapper.cascade_iterator("delete", state)
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\mapper.py", line 3992, in cascade_iterator
+    queue = deque(
+        prop.cascade_iterator(
+    ...<5 lines>...
+        )
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\relationships.py", line 1525, in cascade_iterator
+    tuples = self._value_as_iterable(
+        state, dict_, self.key, passive=passive
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\relationships.py", line 1495, in _value_as_iterable
+    x = impl.get(state, dict_, passive=passive)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1131, in _fire_loader_callables
+    return self.callable_(state, passive)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\strategies.py", line 978, in _load_for_state
+    return self._emit_lazyload(
+           ~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<7 lines>...
+        execution_options,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\strategies.py", line 1141, in _emit_lazyload
+    result = session.execute(
+        stmt, params, execution_options=execution_options
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column chat_messages.acknowledged_by does not exist
+LINE 1: ..._messages.created_at AS chat_messages_created_at, chat_messa...
+                                                             ^
+
+[SQL: SELECT chat_messages.id AS chat_messages_id, chat_messages.patient_id AS chat_messages_patient_id, chat_messages.user_message AS chat_messages_user_message, chat_messages.bot_reply AS chat_messages_bot_reply, chat_messages.topic AS chat_messages_topic, chat_messages.emergency AS chat_messages_emergency, chat_messages.created_at AS chat_messages_created_at, chat_messages.acknowledged_by AS chat_messages_acknowledged_by, chat_messages.acknowledged_at AS chat_messages_acknowledged_at 
+FROM chat_messages 
+WHERE %(param_1)s = chat_messages.patient_id ORDER BY chat_messages.id DESC]
+[parameters: {'param_1': 10}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     127.0.0.1:57515 - "DELETE /patients/10 HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column chat_messages.acknowledged_by does not exist
+LINE 1: ..._messages.created_at AS chat_messages_created_at, chat_messa...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1160, in __call__
+    await super().__call__(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 130, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 116, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 670, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\fastapi\routing.py", line 326, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\starlette\concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2502, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 986, in run
+    result = context.run(func, *args)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\routers\patients.py", line 275, in delete_patient
+    db.delete(db_patient)
+    ~~~~~~~~~^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3528, in delete
+    self._delete_impl(state, instance, head=True)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 3555, in _delete_impl
+    cascade_states = list(
+        state.manager.mapper.cascade_iterator("delete", state)
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\mapper.py", line 3992, in cascade_iterator
+    queue = deque(
+        prop.cascade_iterator(
+    ...<5 lines>...
+        )
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\relationships.py", line 1525, in cascade_iterator
+    tuples = self._value_as_iterable(
+        state, dict_, self.key, passive=passive
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\relationships.py", line 1495, in _value_as_iterable
+    x = impl.get(state, dict_, passive=passive)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1096, in get
+    value = self._fire_loader_callables(state, key, passive)
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\attributes.py", line 1131, in _fire_loader_callables
+    return self.callable_(state, passive)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\strategies.py", line 978, in _load_for_state
+    return self._emit_lazyload(
+           ~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<7 lines>...
+        execution_options,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\strategies.py", line 1141, in _emit_lazyload
+    result = session.execute(
+        stmt, params, execution_options=execution_options
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column chat_messages.acknowledged_by does not exist
+LINE 1: ..._messages.created_at AS chat_messages_created_at, chat_messa...
+                                                             ^
+
+[SQL: SELECT chat_messages.id AS chat_messages_id, chat_messages.patient_id AS chat_messages_patient_id, chat_messages.user_message AS chat_messages_user_message, chat_messages.bot_reply AS chat_messages_bot_reply, chat_messages.topic AS chat_messages_topic, chat_messages.emergency AS chat_messages_emergency, chat_messages.created_at AS chat_messages_created_at, chat_messages.acknowledged_by AS chat_messages_acknowledged_by, chat_messages.acknowledged_at AS chat_messages_acknowledged_at 
+FROM chat_messages 
+WHERE %(param_1)s = chat_messages.patient_id ORDER BY chat_messages.id DESC]
+[parameters: {'param_1': 10}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO:     127.0.0.1:57587 - "GET /patients/9/blockchain-records HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57592 - "POST /mobile/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57594 - "GET /auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57592 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57592 - "GET /patients/9/caretakers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57600 - "POST /results/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57600 - "POST /results/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57600 - "POST /results/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57600 - "POST /results/upload HTTP/1.1" 400 Bad Request
+I0000 00:00:1781334051.616905   20112 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:From D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\keras\src\backend\tensorflow\core.py:232: The name tf.placeholder is deprecated. Please use tf.compat.v1.placeholder instead.
+
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\keras\src\saving\saving_lib.py:797: UserWarning: Skipping variable loading for optimizer 'adam', because it has 235 variables whereas the saved optimizer has 239 variables. 
+  saveable.load_own_variables(weights_store.get(inner_path))
+D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator SVC from version 1.7.2 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\core\detector.py:202: UserWarning: [12:30:58] WARNING: C:\actions-runner\_work\xgboost\xgboost\src\gbm\../common/error_msg.h:83: If you are loading a serialized model (like pickle in Python, RDS in R) or
+configuration generated by an older version of XGBoost, please export the model by calling
+`Booster.save_model` from that version first, then load it back in current version. See:
+
+    https://xgboost.readthedocs.io/en/stable/tutorials/saving_model.html
+
+for more details about differences between saving model and serializing.
+
+  _xgb_clf = pickle.load(f)
+D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Lib\site-packages\sklearn\base.py:463: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.7.2 when using version 1.8.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+E0000 00:00:1781334065.613252   20112 util.cc:131] oneDNN supports DT_HALF only on platforms with AVX-512. Falling back to the default Eigen-based implementation if present.
+INFO:     127.0.0.1:57604 - "POST /results/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61579 - "POST /results/upload HTTP/1.1" 413 Content Too Large
+INFO:     127.0.0.1:61583 - "POST /results/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61583 - "POST /results/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61587 - "POST /results/upload HTTP/1.1" 404 Not Found
+SMTP not configured; skipping email delivery to recipient=qa_6ca785504979@example.com
+INFO:     127.0.0.1:61593 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61593 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61597 - "POST /auth/me/avatar HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61597 - "POST /auth/me/avatar HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61597 - "POST /auth/me/avatar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61593 - "DELETE /auth/users/27 HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:61602 - "POST /documents/upload HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61602 - "POST /documents/upload HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61602 - "POST /documents/upload HTTP/1.1" 413 Content Too Large
+INFO:     127.0.0.1:61607 - "GET /uploaded_mris/uploads/e0f792dc2f8444fabc2b43ce9b91c62e.jpg HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61607 - "GET /uploaded_docs/409e599e987a41a3b51d16d8bca4b8f4.pdf HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61611 - "GET /dashboard/audit-logs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61611 - "GET /dashboard/audit-logs HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61615 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61615 - "GET /health/model HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61619 - "POST /auth/login HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:61623 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61627 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61627 - "GET /health/model?load=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:61631 - "POST /auth/login HTTP/1.1" 429 Too Many Requests

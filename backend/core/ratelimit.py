@@ -5,6 +5,7 @@ uses. If the API is ever scaled to multiple workers/hosts, replace with a
 shared store (e.g. Redis) behind the same interface.
 """
 
+import os
 import time
 from collections import defaultdict, deque
 from threading import Lock
@@ -37,12 +38,20 @@ class RateLimiter:
             hits.append(now)
 
 
+# Limits are env-configurable (so test/load environments can relax them without
+# weakening the production defaults below).
 # Staff login: password-based, allow a few typos.
-staff_login_limiter = RateLimiter(max_attempts=10, window_seconds=300)
+staff_login_limiter = RateLimiter(
+    max_attempts=int(os.getenv("STAFF_LOGIN_MAX", "10")),
+    window_seconds=int(os.getenv("STAFF_LOGIN_WINDOW", "300")),
+)
 
 # Mobile login: hospital-ID based (no password), so enumeration is the threat —
 # keep this window tight.
-mobile_login_limiter = RateLimiter(max_attempts=5, window_seconds=300)
+mobile_login_limiter = RateLimiter(
+    max_attempts=int(os.getenv("MOBILE_LOGIN_MAX", "5")),
+    window_seconds=int(os.getenv("MOBILE_LOGIN_WINDOW", "300")),
+)
 
 
 def client_ip(request: Request) -> str:

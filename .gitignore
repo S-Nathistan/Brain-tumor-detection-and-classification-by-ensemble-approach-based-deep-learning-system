@@ -52,3 +52,4 @@ outputs_wavefusionnet/features/
 backend/tumor_models/*.keras
 # Local runtime PID tracking (start/stop-system.ps1)
 .neurosight-pids.json
+testing/.env.test

@@ -1,0 +1,69 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\Projects\NeuroSight_V0\Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system\testing
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 38 items
+
+test_backend_security.py::test_AUTH_01_public_signup_blocked PASSED      [  2%]
+test_backend_security.py::test_AUTH_02_only_admin_can_register PASSED    [  5%]
+test_backend_security.py::test_AUTH_03_invalid_credentials_rejected PASSED [  7%]
+test_backend_security.py::test_AUTH_04_deactivated_account_blocked PASSED [ 10%]
+test_backend_security.py::test_AUTH_05_expired_jwt_rejected PASSED       [ 13%]
+test_backend_security.py::test_AUTH_06_token_tampering_and_alg_none PASSED [ 15%]
+test_backend_security.py::test_AUTH_07_default_secret_key_not_active PASSED [ 18%]
+test_backend_security.py::test_AUTH_08_reset_token_single_use SKIPPED
+env))                                                                    [ 21%]
+test_backend_security.py::test_AUTH_09_forgot_password_no_user_enumeration PASSED [ 23%]
+test_backend_security.py::test_AUTH_10_password_change_requires_current PASSED [ 26%]
+test_backend_security.py::test_AUTH_11_weak_password_rejected SKIPPED
+env))                                                                    [ 28%]
+test_backend_security.py::test_AUTH_12_admin_cannot_self_delete_or_deactivate PASSED [ 31%]
+test_backend_security.py::test_RBAC_01_role_whitelist_enforced PASSED    [ 34%]
+test_backend_security.py::test_RBAC_02_assistant_blocked_from_admin_endpoints PASSED [ 36%]
+test_backend_security.py::test_RBAC_03_treatment_plan_writes_restricted PASSED [ 39%]
+test_backend_security.py::test_RBAC_04_results_list_scoped_per_role PASSED [ 42%]
+test_backend_security.py::test_RBAC_05_per_patient_results_scoped XPASSxpect XPASS) [ 44%]
+test_backend_security.py::test_RBAC_06_patient_delete_authority XFAILrify role matrix)) [ 47%]
+test_backend_security.py::test_RBAC_07_blockchain_decrypt_requires_auth SKIPPED [ 50%]
+test_backend_security.py::test_RBAC_08_mobile_token_cannot_reach_staff_api XPASSust an int)) [ 52%]
+test_backend_security.py::test_RBAC_09_caretaker_cannot_mutate_clinical_fields SKIPPED [ 55%]
+test_backend_security.py::test_UPL_01_reject_disallowed_content_types PASSED [ 57%]
+test_backend_security.py::test_UPL_03_path_traversal_filename_neutralised PASSED [ 60%]
+test_backend_security.py::test_UPL_04_oversized_upload_rejected XPASSxpect XPASS) [ 63%]
+test_backend_security.py::test_UPL_05_corrupt_and_zero_byte_images PASSED [ 65%]
+test_backend_security.py::test_UPL_08_upload_for_nonexistent_patient PASSED [ 68%]
+test_backend_security.py::test_UPL_09_avatar_limits_enforced PASSED      [ 71%]
+test_backend_security.py::test_UPL_10_document_upload_validation XPASSranch \u2192 expect XPASS) [ 73%]
+test_backend_security.py::test_UPL_11_static_phi_requires_auth XPASSnch\n\u2192 expect XPASS)                                                          [ 76%]
+test_backend_security.py::test_UPL_02_content_type_spoof_decoded SKIPPED [ 78%]
+test_backend_security.py::test_UPL_07_valid_mri_accepted SKIPPED (needs
+ML model loaded; set RUN_MODEL=1)                                        [ 81%]
+test_backend_security.py::test_DATA_01_patient_deletion_integrity SKIPPED [ 84%]
+test_backend_security.py::test_DATA_02_audit_logs_admin_only PASSED      [ 86%]
+test_backend_security.py::test_DATA_03_health_endpoints PASSED           [ 89%]
+test_backend_security.py::test_DATA_04_cors_rejects_unknown_origin PASSED [ 92%]
+test_backend_security.py::test_DATA_05_no_credential_leak_in_user_list PASSED [ 94%]
+test_backend_security.py::test_API_02_health_model_load_param_guarded XFAIL load (open DoS vector)) [ 97%]
+test_backend_security.py::test_API_01_login_rate_limiting XPASS (API-01:\nno auth rate limiting; sliding-window limiter ADDED this branch \u2192 expect\nXPASS)                                                                   [100%]
+
+=================================== XPASSES ===================================
+=========================== short test summary info ===========================
+SKIPPED [1] test_backend_security.py:155: Cannot mint reset token (backend package/DB not importable from test env)
+SKIPPED [1] test_backend_security.py:202: Cannot mint reset token (backend package/DB not importable from test env)
+SKIPPED [1] test_backend_security.py:297: No on-chain records for this patient to exercise decrypt scoping
+SKIPPED [1] test_backend_security.py:321: No caretaker registered for this patient
+SKIPPED [1] test_backend_security.py:476: needs ML model loaded; set RUN_MODEL=1
+SKIPPED [1] test_backend_security.py:490: needs ML model loaded; set RUN_MODEL=1
+SKIPPED [1] test_backend_security.py:510: deletes data; set RUN_DESTRUCTIVE=1
+XFAIL test_backend_security.py::test_RBAC_06_patient_delete_authority - RBAC-06: patient delete not restricted to Admin/Clinician (open — verify role matrix)
+XFAIL test_backend_security.py::test_API_02_health_model_load_param_guarded - API-02: /health/model?load=true is unauthenticated and can force model load (open DoS vector)
+XPASS test_backend_security.py::test_RBAC_05_per_patient_results_scoped - RBAC-05: per-patient result scoping was missing; FIXED this branch \u2192 expect XPASS
+XPASS test_backend_security.py::test_RBAC_08_mobile_token_cannot_reach_staff_api - RBAC-08: staff/patient id-collision crossover possible (token sub is just an int)
+XPASS test_backend_security.py::test_UPL_04_oversized_upload_rejected - UPL-04: MRI upload had no size cap; 20MB limit ADDED this branch \u2192 expect XPASS
+XPASS test_backend_security.py::test_UPL_10_document_upload_validation - UPL-10: document upload had no type/size/patient checks; ADDED this branch \u2192 expect XPASS
+XPASS test_backend_security.py::test_UPL_11_static_phi_requires_auth - UPL-11: PHI static mounts were unauthenticated; auth ADDED this branch \u2192 expect XPASS
+XPASS test_backend_security.py::test_API_01_login_rate_limiting - API-01: no auth rate limiting; sliding-window limiter ADDED this branch \u2192 expect XPASS
+============ 23 passed, 7 skipped, 2 xfailed, 6 xpassed in 41.41s =============
