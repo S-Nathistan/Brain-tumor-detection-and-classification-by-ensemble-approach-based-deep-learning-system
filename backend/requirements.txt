@@ -23,6 +23,7 @@ email-validator
 # ── Auth ──────────────────────────────────────────────────────────────────────
 bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
+cryptography                 # Fernet field encryption (patients PII)
 
 # ── MRI Classification ────────────────────────────────────────────────────────
 tensorflow-cpu
@@ -41,6 +42,7 @@ PyMuPDF
 # ── Shared utilities ──────────────────────────────────────────────────────────
 joblib
 pandas
+requests                     # blockchain ledger calls (medical_history_chain)
 
 # ── Mobile Chatbot ────────────────────────────────────────────────────────────
 # Full setup instructions: backend/chatbot/requirements.txt
