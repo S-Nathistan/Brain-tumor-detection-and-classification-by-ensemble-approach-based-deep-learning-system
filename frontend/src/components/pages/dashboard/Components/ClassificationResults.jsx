@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { api, getCurrentUser } from "../../../../util";
+import { api, getCurrentUser, getToken } from "../../../../util";
 
 // ─── Tumour colour map ──────────────────────────────────────────────────────
 const TUMOUR_META = {
@@ -435,10 +435,18 @@ const ClassificationResults = () => {
   const [xaiActiveImg, setXaiActiveImg] = useState("gradcam_composite");
   const cancelXaiRef = useRef(false);
 
-  const latestDbResult = patient?.results?.[0] ?? null;
+  // Pick the most recent scan explicitly — patient.results has no guaranteed
+  // ordering, so results[0] can be an old row. Sort by created_at, then id.
+  const latestDbResult = patient?.results?.length
+    ? [...patient.results].sort((a, b) => {
+        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bd - ad || (b.id ?? 0) - (a.id ?? 0);
+      })[0]
+    : null;
   const activeResult   = specificResult || latestDbResult;
 
-  const scanUrl        = localScanUrl || (activeResult ? `http://127.0.0.1:8000/uploaded_mris/${activeResult.filename}` : null);
+  const scanUrl        = localScanUrl || (activeResult ? `http://127.0.0.1:8000/uploaded_mris/${activeResult.filename}?token=${encodeURIComponent(getToken() || "")}` : null);
   const classification = activeResult?.predicted_label || "Not Classified";
 
   const rawConf        = activeResult?.confidence ?? 0;

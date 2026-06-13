@@ -21,6 +21,15 @@ async function main() {
   const address = await contract.getAddress();
   console.log("MedicalHistoryLedger deployed to:", address);
 
+  // Deployer is owner + authorized writer by constructor. If the backend signs
+  // with a different account, authorize it here via env var.
+  const backendWriter = process.env.BACKEND_WRITER_ADDRESS;
+  if (backendWriter && backendWriter.toLowerCase() !== deployer.address.toLowerCase()) {
+    const tx = await contract.authorizeWriter(backendWriter);
+    await tx.wait();
+    console.log("Authorized backend writer:", backendWriter);
+  }
+
   const deployInfo = {
     contractAddress: address,
     network: hre.network.name,

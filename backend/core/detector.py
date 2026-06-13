@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import pywt
 from pathlib import Path
+from PIL import Image
 import tensorflow as tf
 from tensorflow.keras import layers
 
@@ -207,40 +208,75 @@ def _load_all():
                 _weights = json.load(f)
 
 
-def _preprocess(image_path: str) -> np.ndarray:
-    img = cv2.imread(image_path)
-    if img is None:
-        raise ValueError(f"Cannot read image: {image_path}")
+# ---------------------------------------------------------------------------
+# Preprocessing — MUST match the training pipeline (notebook SECTION 3) exactly.
+# Train/serve skew here silently corrupts predictions: load+LANCZOS resize ->
+# CLAHE on LAB L -> brain-region crop -> db2 wavelet soft-threshold DENOISE ->
+# normalize to [0, 1]. (The wavelet step denoises; it does NOT sharpen.)
+# ---------------------------------------------------------------------------
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+_CLAHE_CLIP = 2.0
+_CLAHE_TILE = (8, 8)
+_WAVELET    = "db2"
+_WAVELET_LVL = 2
+_EDGE_BOOST = 1.0
 
-    # CLAHE on LAB luminance channel
-    lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+def _apply_clahe(image: np.ndarray) -> np.ndarray:
+    clahe = cv2.createCLAHE(clipLimit=_CLAHE_CLIP, tileGridSize=_CLAHE_TILE)
+    lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
     lab[:, :, 0] = clahe.apply(lab[:, :, 0])
-    img = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
-    # Skull crop: bounding box of the largest contour (brain region)
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    _, thresh = cv2.threshold(gray, 15, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-        x, y, w, h = cv2.boundingRect(max(contours, key=cv2.contourArea))
-        img = img[y:y + h, x:x + w]
 
-    # Wavelet sharpen: boost detail coefficients then reconstruct
-    img_f = img.astype(np.float32) / 255.0
-    sharpened = np.zeros_like(img_f)
-    orig_h, orig_w = img_f.shape[:2]
-    for ch in range(3):
-        cA, (cH, cV, cD) = pywt.dwt2(img_f[:, :, ch], "haar")
-        rec = pywt.idwt2((cA, (cH * 1.5, cV * 1.5, cD * 1.5)), "haar")
-        sharpened[:, :, ch] = rec[:orig_h, :orig_w]
-    img_f = np.clip(sharpened, 0.0, 1.0)
+def _crop_brain_region(image: np.ndarray, pad_pct: float = 0.02) -> np.ndarray:
+    """Crop to the brain bounding box (removes black background only), then
+    resize back to the original dimensions. Preserves all brain/tumour tissue."""
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    _, binary = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
+    coords = cv2.findNonZero(binary)
+    if coords is None:
+        return image
+    x, y, w, h = cv2.boundingRect(coords)
+    pad_x, pad_y = int(w * pad_pct), int(h * pad_pct)
+    x, y = max(0, x - pad_x), max(0, y - pad_y)
+    w = min(image.shape[1] - x, w + 2 * pad_x)
+    h = min(image.shape[0] - y, h + 2 * pad_y)
+    cropped = image[y:y + h, x:x + w]
+    return cv2.resize(cropped, (image.shape[1], image.shape[0]),
+                      interpolation=cv2.INTER_LANCZOS4)
 
-    # Resize and keep as float32 in [0, 1]
-    img_resized = cv2.resize(img_f, (IMG_SIZE, IMG_SIZE))
-    return img_resized.astype(np.float32)
+
+def _wavelet_enhance(image: np.ndarray) -> np.ndarray:
+    """db2 multi-level soft-threshold wavelet denoising (edge_boost=1.0 → no
+    artificial sharpening)."""
+    enhanced = []
+    for c in range(3):
+        channel = image[:, :, c].astype(np.float64)
+        coeffs = pywt.wavedec2(channel, _WAVELET, level=_WAVELET_LVL)
+        sigma = np.median(np.abs(coeffs[-1][-1])) / 0.6745
+        threshold = sigma * 0.5
+        for i in range(1, len(coeffs)):
+            coeffs[i] = tuple(
+                pywt.threshold(d, threshold, mode="soft") * _EDGE_BOOST
+                for d in coeffs[i]
+            )
+        recon = pywt.waverec2(coeffs, _WAVELET)[:image.shape[0], :image.shape[1]]
+        enhanced.append(np.clip(recon, 0, 255))
+    return np.stack(enhanced, axis=-1).astype(np.uint8)
+
+
+def _preprocess(image_path: str) -> np.ndarray:
+    try:
+        img = Image.open(image_path).convert("RGB").resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
+        img = np.array(img)
+    except Exception as exc:
+        raise ValueError(f"Cannot read image: {image_path} ({exc})")
+
+    img = _apply_clahe(img)
+    img = _crop_brain_region(img)
+    img = _wavelet_enhance(img)
+    return (img.astype(np.float32) / 255.0)
 
 
 def _extract_features(arr: np.ndarray):

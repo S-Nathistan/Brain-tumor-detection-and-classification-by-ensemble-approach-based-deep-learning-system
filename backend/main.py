@@ -62,12 +62,15 @@
 # ====================================================================================================
 
 from contextlib import asynccontextmanager
+from urllib.parse import parse_qs
 import asyncio
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
 
 from backend.core.config import settings, CORS_ORIGINS
 from backend.core.detector import get_model_readiness, predict as _predict_warmup
@@ -163,16 +166,54 @@ app.add_middleware(
 # Create tables — models already imported above, create_all sees all of them
 Base.metadata.create_all(bind=engine)
 
+class AuthenticatedStaticFiles(StaticFiles):
+    """StaticFiles gated by a valid JWT (staff or mobile token).
+
+    The token comes from the Authorization header when possible, or from a
+    `?token=` query parameter — <img src> / <a href> cannot set headers.
+    Signature + expiry are verified; no DB lookup, since these are
+    content-addressed (UUID) PHI files, not per-row authorization.
+    """
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and not self._is_authorized(scope):
+            response = JSONResponse({"detail": "Not authenticated"}, status_code=401)
+            await response(scope, receive, send)
+            return
+        await super().__call__(scope, receive, send)
+
+    @staticmethod
+    def _is_authorized(scope) -> bool:
+        token = None
+        for name, value in scope.get("headers", []):
+            if name == b"authorization":
+                header = value.decode("latin-1")
+                if header.lower().startswith("bearer "):
+                    token = header.split(None, 1)[1]
+                break
+        if not token:
+            params = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+            token = (params.get("token") or [None])[0]
+        if not token:
+            return False
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            return payload.get("sub") is not None
+        except JWTError:
+            return False
+
+
 # Serve MRI images: files stored as "uploads/<uuid>.jpg" in DB → mount so
 # GET /uploaded_mris/uploads/<uuid>.jpg resolves from the uploads/ directory.
+# MRI scans and clinical documents are PHI — require a valid token to fetch.
 os.makedirs("uploads", exist_ok=True)
-app.mount("/uploaded_mris/uploads", StaticFiles(directory="uploads"), name="uploaded_mris")
+app.mount("/uploaded_mris/uploads", AuthenticatedStaticFiles(directory="uploads"), name="uploaded_mris")
 
 os.makedirs("uploads/avatars", exist_ok=True)
 app.mount("/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
 
 os.makedirs("uploaded_docs", exist_ok=True)
-app.mount("/uploaded_docs", StaticFiles(directory="uploaded_docs"), name="uploaded_docs")
+app.mount("/uploaded_docs", AuthenticatedStaticFiles(directory="uploaded_docs"), name="uploaded_docs")
 
 app.include_router(auth.router)
 app.include_router(results.router)

@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta, timezone
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.core.ratelimit import client_ip, mobile_login_limiter
 from backend.db.database import get_db
 from backend.models.admission import Admission
 from backend.models.chat_message import ChatMessage
@@ -383,15 +384,13 @@ class MedicationLogRequest(BaseModel):
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/login")
-def patient_login(body: PatientLoginRequest, db: Session = Depends(get_db)):
-    lookup = body.hospital_id.strip()
-    normalized = lookup.upper()
+def patient_login(body: PatientLoginRequest, request: Request, db: Session = Depends(get_db)):
+    # Hospital-ID-only auth: rate limit per IP to slow enumeration. Raw DB ids
+    # are sequential and guessable, so only the hospital_id is accepted.
+    mobile_login_limiter.check(client_ip(request))
+    normalized = body.hospital_id.strip().upper()
 
-    query = db.query(Patient).filter(Patient.hospital_id == normalized)
-    if lookup.isdigit():
-        query = query.union_all(db.query(Patient).filter(Patient.id == int(lookup)))
-
-    patient = query.first()
+    patient = db.query(Patient).filter(Patient.hospital_id == normalized).first()
     if not patient:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Patient not found")
 
@@ -416,7 +415,8 @@ def patient_login(body: PatientLoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/caretaker-login")
-def caretaker_login(body: CaretakerLoginRequest, db: Session = Depends(get_db)):
+def caretaker_login(body: CaretakerLoginRequest, request: Request, db: Session = Depends(get_db)):
+    mobile_login_limiter.check(client_ip(request))
     patient = db.query(Patient).filter(
         Patient.hospital_id == body.hospital_id.strip().upper()
     ).first()
@@ -777,34 +777,6 @@ def patient_report(
             for p in plans
         ],
     }
-
-
-class PatientSettingsRequest(BaseModel):
-    tumour_type: str | None = None
-
-
-@router.put("/patient")
-def update_mobile_patient(
-    body: PatientSettingsRequest,
-    auth: tuple[Patient, str] = Depends(get_mobile_patient),
-    db: Session = Depends(get_db),
-):
-    """Allow mobile users to update limited patient settings (tumour_type).
-
-    This endpoint updates only safe fields that patients can change from the mobile app.
-    """
-    patient, _role = auth
-    updated = False
-    if body.tumour_type is not None:
-        patient.tumour_type = body.tumour_type.strip() or None
-        updated = True
-
-    if updated:
-        db.add(patient)
-        db.commit()
-        db.refresh(patient)
-
-    return _patient_payload(patient)
 
 
 @router.post("/medication-log")

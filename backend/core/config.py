@@ -6,11 +6,15 @@ DATABASE_URL_PLACEHOLDER = "postgresql+psycopg2://user:najma1234@localhost:5432/
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE_PATH = BACKEND_DIR / ".env"
 
+# Former hard-coded fallback — anyone who has seen the repo can forge tokens
+# signed with it, so startup must refuse it.
+_INSECURE_DEFAULT_SECRET = "1234567890abcdef1234567890abcdef"
+
 class Settings(BaseSettings):
 
     DATABASE_URL: str = DATABASE_URL_PLACEHOLDER
 
-    SECRET_KEY: str = "1234567890abcdef1234567890abcdef"              # use a strong random string
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     UPLOAD_DIR: str = str(Path(__file__).resolve().parent.parent / "uploads")
@@ -43,6 +47,13 @@ class Settings(BaseSettings):
             object.__setattr__(self, 'DATABASE_URL', self.DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1))
         elif self.DATABASE_URL and self.DATABASE_URL.startswith('postgres://'):
             object.__setattr__(self, 'DATABASE_URL', self.DATABASE_URL.replace('postgres://', 'postgresql+psycopg2://', 1))
+
+        if not self.SECRET_KEY or self.SECRET_KEY == _INSECURE_DEFAULT_SECRET or len(self.SECRET_KEY) < 32:
+            raise RuntimeError(
+                "SECRET_KEY is missing, too short (<32 chars), or set to the known insecure default. "
+                "Set a strong random value in backend/.env, e.g.: "
+                "python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
 
 settings = Settings()
 

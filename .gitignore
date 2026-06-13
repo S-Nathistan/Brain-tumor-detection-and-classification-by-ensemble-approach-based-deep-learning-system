@@ -50,3 +50,5 @@ Thumbs.db
 outputs_wavefusionnet/models/
 outputs_wavefusionnet/features/
 backend/tumor_models/*.keras
+# Local runtime PID tracking (start/stop-system.ps1)
+.neurosight-pids.json

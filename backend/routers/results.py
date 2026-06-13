@@ -1,7 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, HTTPException, Request, Form
 from sqlalchemy.orm import Session, selectinload
 import uuid
-import shutil
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
@@ -127,6 +126,39 @@ def _normalise_label(raw: str) -> str:
     return _LABEL_MAP.get(raw.lower(), raw.replace("_", " ").title())
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp", "image/tiff"}
+ALLOWED_IMAGE_EXTS = {"jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff"}
+MAX_MRI_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
+
+
+def _safe_image_ext(filename: str | None) -> str:
+    """Extension for the stored file. Whitelisted only — never raw user input,
+    so traversal sequences or doubled extensions can't reach the filesystem."""
+    if filename and "." in filename:
+        ext = filename.rsplit(".", 1)[-1].lower()
+        if ext in ALLOWED_IMAGE_EXTS:
+            return ext
+    return "jpg"
+
+
+def _save_upload_capped(file: UploadFile, dst: Path, max_bytes: int) -> None:
+    """Stream the upload to disk, aborting (and cleaning up) past max_bytes."""
+    written = 0
+    try:
+        with dst.open("wb") as out:
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum upload size is {max_bytes // (1024 * 1024)} MB.",
+                    )
+                out.write(chunk)
+    except HTTPException:
+        dst.unlink(missing_ok=True)
+        raise
 
 
 # ==========================================================
@@ -147,14 +179,13 @@ async def predict_tumour(
     uploads = Path(settings.UPLOAD_DIR)
     uploads.mkdir(parents=True, exist_ok=True)
 
-    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
-    tmp_path = uploads / f"tmp_{uuid.uuid4()}.{ext}"
+    tmp_path = uploads / f"tmp_{uuid.uuid4()}.{_safe_image_ext(file.filename)}"
 
     try:
-        with tmp_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
-
+        _save_upload_capped(file, tmp_path, MAX_MRI_UPLOAD_BYTES)
         raw_label, confidence = predict(str(tmp_path))
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except RuntimeError as exc:
@@ -271,12 +302,10 @@ def upload_scan(
     uploads = Path(settings.UPLOAD_DIR)
     uploads.mkdir(parents=True, exist_ok=True)
 
-    file_extension = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
-    safe_filename = f"{uuid.uuid4()}.{file_extension}"
+    safe_filename = f"{uuid.uuid4()}.{_safe_image_ext(file.filename)}"
     dst = uploads / safe_filename
 
-    with dst.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+    _save_upload_capped(file, dst, MAX_MRI_UPLOAD_BYTES)
 
     try:
         raw_label, conf = predict(str(dst))
@@ -404,7 +433,21 @@ def list_results(db: Session = Depends(get_db), current_user: User = Depends(get
 
 @router.get("/patient/{patient_id}")
 def get_patient_results(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    return db.query(Result).filter(Result.patient_id == patient_id).order_by(Result.created_at.desc()).all()
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Same scoping as list_results: admins see all, clinicians only their
+    # assigned patients, everyone else only their own uploads.
+    q = db.query(Result).filter(Result.patient_id == patient_id)
+    if current_user.role in ("Super Admin", "Admin"):
+        pass
+    elif current_user.role == "Clinician":
+        if patient.assigned_doctor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not assigned to this patient")
+    else:
+        q = q.filter(Result.user_id == current_user.id)
+    return q.order_by(Result.created_at.desc()).all()
 
 
 @router.get("/{result_id}", response_model=ResultRead)

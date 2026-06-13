@@ -14,6 +14,7 @@ from backend.models.user import User
 from backend.schemas.user import UserCreate, UserLogin, UserRead, UserUpdate, SelfUpdate, Token
 from backend.core.email_utils import create_password_reset_token, get_user_by_password_reset_token, send_welcome_email, send_password_reset_email
 from backend.core.audit import log_event
+from backend.core.ratelimit import client_ip, staff_login_limiter
 from backend.core.security import get_current_active_user, get_current_user, normalize_role, require_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -79,6 +80,7 @@ def register(
 
 @router.post("/login", response_model=Token)
 def login(body: UserLogin, request: Request, db: Session = Depends(get_db)):
+    staff_login_limiter.check(client_ip(request))
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not pwd_ctx.verify(body.password, user.password_hash):
         log_event(db, "Failed Login Attempt", ip=request.client.host, status="Failed", details=f"Invalid attempt for: {body.email}")

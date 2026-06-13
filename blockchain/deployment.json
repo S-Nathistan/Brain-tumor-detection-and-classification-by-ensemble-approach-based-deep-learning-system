@@ -1,8 +1,31 @@
 {
-  "contractAddress": "0xA1F6C0a26B0a50adDE4cb33b4465CEf9Ce4cA3aD",
+  "contractAddress": "0xaE6b3FEE055703E1411889b8b772f76854636140",
   "network": "ganache",
-  "deployedAt": "2026-05-28T20:16:09.381Z",
+  "deployedAt": "2026-06-12T19:52:29.745Z",
   "abi": [
+    {
+      "type": "constructor",
+      "stateMutability": "undefined",
+      "payable": false,
+      "inputs": []
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "OwnershipTransferred",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "previousOwner",
+          "indexed": true
+        },
+        {
+          "type": "address",
+          "name": "newOwner",
+          "indexed": true
+        }
+      ]
+    },
     {
       "type": "event",
       "anonymous": false,
@@ -26,6 +49,30 @@
       ]
     },
     {
+      "type": "event",
+      "anonymous": false,
+      "name": "WriterAuthorized",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "writer",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "anonymous": false,
+      "name": "WriterRevoked",
+      "inputs": [
+        {
+          "type": "address",
+          "name": "writer",
+          "indexed": true
+        }
+      ]
+    },
+    {
       "type": "function",
       "name": "addRecord",
       "constant": false,
@@ -41,6 +88,38 @@
         }
       ],
       "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "authorizeWriter",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "writer"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "authorizedWriters",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ],
+      "outputs": [
+        {
+          "type": "bool",
+          "name": ""
+        }
+      ]
     },
     {
       "type": "function",
@@ -79,6 +158,46 @@
           "name": ""
         }
       ]
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "constant": true,
+      "stateMutability": "view",
+      "payable": false,
+      "inputs": [],
+      "outputs": [
+        {
+          "type": "address",
+          "name": ""
+        }
+      ]
+    },
+    {
+      "type": "function",
+      "name": "revokeWriter",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "writer"
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "type": "function",
+      "name": "transferOwnership",
+      "constant": false,
+      "payable": false,
+      "inputs": [
+        {
+          "type": "address",
+          "name": "newOwner"
+        }
+      ],
+      "outputs": []
     }
   ]
 }

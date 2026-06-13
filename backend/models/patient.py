@@ -50,7 +50,7 @@ class Patient(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) # Added by Nirojini
     
     # Relationships
-    results = relationship("Result", back_populates="patient", cascade="all, delete-orphan")
+    results = relationship("Result", back_populates="patient", cascade="all, delete-orphan", order_by="Result.id.desc()")
     admissions = relationship("Admission", back_populates="patient", cascade="all, delete-orphan", order_by="Admission.id")
     caretakers = relationship("Caretaker", back_populates="patient", cascade="all, delete-orphan")
     checkins = relationship("CheckIn", back_populates="patient", cascade="all, delete-orphan", order_by="CheckIn.id.desc()")

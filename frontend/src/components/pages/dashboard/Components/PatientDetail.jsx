@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { api, getCurrentUser } from "../../../../util";
+import { api, getCurrentUser, getToken } from "../../../../util";
 import BlockchainRecordModal from "./BlockchainRecordModal";
 import BlockchainRecordsTab from "./BlockchainRecordsTab";
 
@@ -611,7 +611,7 @@ const PatientDetail = () => {
                         </span>
                       </div>
                       <div style={{ padding: '10px 12px', display: 'flex', gap: 12 }}>
-                        <img src={`http://127.0.0.1:8000/uploaded_mris/${res.filename}`} alt="MRI" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid #f1f5f9', flexShrink: 0 }} />
+                        <img src={`http://127.0.0.1:8000/uploaded_mris/${res.filename}?token=${encodeURIComponent(getToken() || "")}`} alt="MRI" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid #f1f5f9', flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>AI Classification</div>
                           <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{res.predicted_label}</div>
@@ -1887,7 +1887,7 @@ const PatientDetail = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {scans.map(res => (
                             <div key={res.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                              <img src={`http://127.0.0.1:8000/uploaded_mris/${res.filename}`} alt="MRI" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid #f1f5f9', flexShrink: 0 }} />
+                              <img src={`http://127.0.0.1:8000/uploaded_mris/${res.filename}?token=${encodeURIComponent(getToken() || "")}`} alt="MRI" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid #f1f5f9', flexShrink: 0 }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{res.predicted_label}</div>
                                 <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: "'DM Mono',monospace", marginTop: 1 }}>
@@ -2300,7 +2300,7 @@ const PatientDetail = () => {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                    <a href={`http://127.0.0.1:8000/uploaded_docs/${doc.saved_name}`} target="_blank" rel="noopener noreferrer"
+                    <a href={`http://127.0.0.1:8000/uploaded_docs/${doc.saved_name}?token=${encodeURIComponent(getToken() || "")}`} target="_blank" rel="noopener noreferrer"
                       style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", textDecoration: "none" }}>View</a>
                     {pageMode === "edit" && (
                       <button onClick={() => handleDeleteDocument(doc.id)} style={{ fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", cursor: "pointer" }}>Remove</button>
