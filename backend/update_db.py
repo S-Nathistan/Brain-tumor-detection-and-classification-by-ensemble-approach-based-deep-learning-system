@@ -227,6 +227,10 @@ def update_db():
                     raise
         else:
             print("  chat_messages table already exists")
+            _add_columns(conn, "chat_messages", [
+                ("acknowledged_by", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
+                ("acknowledged_at", "TIMESTAMP WITH TIME ZONE"),
+            ])
 
         # ── enrollments table ────────────────────────────────────────────────────
         print("Checking enrollments table…")

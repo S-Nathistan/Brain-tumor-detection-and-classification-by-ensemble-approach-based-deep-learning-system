@@ -112,13 +112,33 @@ If port 8001 is not running, the chatbot automatically falls back to
 the TF-IDF classifier (Step 2) — no crash, but reduced answer quality.
 
 9) Mobile App Setup and Run
-1. Go to mobile folder:
+First-time setup (install dependencies once):
 	cd mobile
-2. Install dependencies:
 	npm install
-3. Start mobile app:
+	cd ..
+
+Run (managed launcher — preferred):
+	From the project root:
+		npm run start:mobile
+	This starts the whole system plus the mobile PWA:
+		backend (:8000), frontend dashboard (:5173),
+		chatbot (:8001, only if model.safetensors present),
+		and mobile (:5174).
+	It frees stale ports first, launches each service detached, records
+	PIDs to .neurosight-pids.json, then waits for backend /health (model
+	warmup can take 5-15 min). Mobile UI is reachable at http://localhost:5174
+	as soon as Vite starts; backend-dependent features wait for warmup.
+
+	Stop everything cleanly:
+		npm stop
+
+	Options (call the script directly to skip the warmup wait):
+		powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-system.ps1 -Mobile -NoWait
+
+Manual run (fallback — single service only, no port/PID cleanup):
+	cd mobile
 	npm run dev
-4. Open URL shown by Vite (usually http://localhost:5174).
+	Open the URL shown by Vite (usually http://localhost:5174).
 
 
 10) Emergency feature (SOS alerts)

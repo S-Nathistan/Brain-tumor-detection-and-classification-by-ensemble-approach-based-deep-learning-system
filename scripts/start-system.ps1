@@ -85,14 +85,23 @@ $started += Start-NsService -Name 'backend' -File $VenvPy `
     -ArgList @('-m','uvicorn','backend.main:app','--reload','--port','8000') `
     -WorkDir $Root -Port 8000
 
-# Chatbot microservice (optional - only if model present and not disabled)
+# Chatbot microservice (optional - only if model present, deps installed, and not disabled)
 if (-not $NoChatbot) {
-    if (Test-Path $ChatbotModel) {
-        $started += Start-NsService -Name 'chatbot' -File $VenvPy `
-            -ArgList @('-m','uvicorn','backend.chatbot.microservice:app','--port','8001') `
-            -WorkDir $Root -Port 8001
-    } else {
+    if (-not (Test-Path $ChatbotModel)) {
         Write-Host "skipping chatbot - model.safetensors missing (backend uses TF-IDF fallback)" -ForegroundColor DarkGray
+    } else {
+        # Verify RAG deps are installed in the venv. Without these the microservice
+        # import-crashes on boot and the backend silently falls back to TF-IDF.
+        & $VenvPy -c "import importlib.util,sys; m=[n for n in ('pandas','torch','transformers','faiss') if not importlib.util.find_spec(n)]; sys.exit(1) if m else print(','.join(m))" 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "skipping chatbot - RAG deps missing in venv (pandas/torch/transformers/faiss-cpu)." -ForegroundColor Yellow
+            Write-Host "  install: $VenvPy -m pip install -r backend/chatbot/requirements.txt" -ForegroundColor Yellow
+            Write-Host "  backend uses TF-IDF fallback until then." -ForegroundColor DarkGray
+        } else {
+            $started += Start-NsService -Name 'chatbot' -File $VenvPy `
+                -ArgList @('-m','uvicorn','backend.chatbot.microservice:app','--port','8001') `
+                -WorkDir $Root -Port 8001
+        }
     }
 }
 
