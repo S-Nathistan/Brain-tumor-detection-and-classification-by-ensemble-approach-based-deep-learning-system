@@ -1,17 +1,33 @@
 NeuroSight Setup Instructions (Updated)
 
+Overview
+NeuroSight detects and classifies brain tumors from MRI scans using an ensemble
+deep learning model (WaveFusionNet + SVM + XGBoost), and adds a full care
+workflow: clinician dashboard, patient mobile PWA, explainable-AI heatmaps,
+medical chatbot, blockchain medical records, and real-time emergency alerts.
+
+Components and ports:
+- Backend API (FastAPI)        : http://127.0.0.1:8000   (docs: /docs)
+- Frontend dashboard (Vite)    : http://localhost:5173
+- Mobile PWA (Vite)            : http://localhost:5174
+- Chatbot microservice         : http://127.0.0.1:8001   (optional)
+
 Prerequisites
 - Python 3.11
 - Node.js (18+ recommended)
 - npm
 - PostgreSQL + pgAdmin
+- Git
+- (optional) Hardhat / local Ethereum node for the blockchain feature
 
 1) Create Database
 1. Open pgAdmin.
 2. Create a database named brain_tumor.
+   (Tables are created automatically on first backend startup.)
 
 2) Open Project
-1. Clone the repository.
+1. Clone the repository:
+   git clone https://github.com/TharunKalugalla/Brain-tumor-detection-and-classification-by-ensemble-approach-based-deep-learning-system.git
 2. Open the project root in VS Code.
 
 3) Backend Setup
@@ -28,15 +44,26 @@ Prerequisites
 6. Create environment file:
 	copy .env.example .env
 7. Edit .env and set real values:
-	- DATABASE_URL: change the password to your own PostgreSQL password
-	- SECRET_KEY: keep as-is (same for all team members)
-	- Add SMTP settings from section 11 if you want email enrollment to work
+	- DATABASE_URL: change the password to your own PostgreSQL password,
+	  e.g. postgresql+psycopg2://postgres:<yourpassword>@localhost:5432/brain_tumor
+	- SECRET_KEY: REQUIRED. Must be a strong random value of at least 32 chars.
+	  The app REFUSES to start with the example/insecure default. Generate one:
+		python -c "import secrets; print(secrets.token_hex(32))"
+	  Each developer can use their own key for local dev. Tokens signed with one
+	  key are invalid under another, so re-login after changing it.
+	- Add SMTP settings from section 13 if you want email enrollment to work.
+	- Add blockchain settings from section 12 if you want the ledger feature.
 8. Return to project root:
 	cd ..
 
+Note on model files:
+	The ensemble artifacts live in backend/tumor_models/
+	(wavefusionnet_final.keras, svm_clf.pkl, xgb_clf.pkl, scaler.pkl,
+	 ensemble_weights.json) and are required for inference.
+
 IMPORTANT — One-time warning for existing team members:
 	backend/.env has been removed from git tracking (it should never have been committed).
-	The next time you pull from stage-01, git will DELETE your local backend/.env.
+	When you pull, git will DELETE your local backend/.env if it was tracked before.
 	Before pulling: copy your backend/.env to a safe place (e.g. Desktop).
 	After pulling: put it back. Future pulls will never touch it again.
 
@@ -51,10 +78,23 @@ IMPORTANT — One-time warning for existing team members:
 
 Note:
 - npm run dev at root uses backend/.venv Python directly.
-- Uploaded MRI and document folders are served from:
+- First start runs a model + XAI warmup (loads weights, compiles TensorFlow
+  graphs). This is a one-time cost of ~5-15 min; /health returns 200 when ready.
+  Set SKIP_WARMUP=true in .env to skip it for dev (first request is then slow).
+- Uploaded MRI and document folders are served (JWT-gated) from:
   /uploaded_mris and /uploaded_docs
 
-5) Frontend Setup and Run
+5) Create Default Admin
+1. Activate the backend venv.
+2. From project root, run:
+	python backend/seed_admin.py
+3. Default Super Admin credentials:
+	Email:    admin@neurosight.ai
+	Password: admin123
+   Change this password outside local dev. You can also create users via the
+   auth endpoints in the API docs.
+
+6) Frontend Setup and Run
 1. Go to frontend folder:
 	cd frontend
 2. Install dependencies:
@@ -66,7 +106,7 @@ Note:
 Optional: Run frontend from root
 - npm run dev:frontend
 
-6) Test Database Connection
+7) Test Database Connection
 1. Activate backend venv and run from backend folder:
 	python test_db.py
 
@@ -74,15 +114,24 @@ If you use a separate test database URL:
 - set TEST_DATABASE_URL=postgresql+psycopg2://<user>:<password>@<host>:5432/<dbname>
 - python test_db.py
 
-7) Create New User
-1. Start backend.
-2. Open API docs at http://127.0.0.1:8000/docs.
-3. Use auth endpoint (register/signup) to create a new user.
+8) Managed Launcher (preferred — runs the whole system)
+From the project root:
+	npm start            -> backend + dashboard (+ chatbot if model present)
+	npm run start:mobile -> same, plus the mobile PWA on :5174
+	npm stop             -> stop all services cleanly
+
+The launcher frees stale ports, starts each service detached, records PIDs to
+.neurosight-pids.json, then waits for backend /health (model warmup 5-15 min).
+
+Skip the warmup wait:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-system.ps1 -Mobile -NoWait
 
  # Mobile Chatbot Instructions
-8) Mobile Chatbot Initial Setup (run once before using the chatbot)
+9) Mobile Chatbot Initial Setup (run once before using the chatbot)
 Note: The backend venv must be activated before running any of these steps.
       All commands run from the project root unless stated otherwise.
+      If the chatbot service (:8001) is not running, the backend automatically
+      falls back to a TF-IDF classifier — no crash, but reduced answer quality.
 
 Step 1 - Install chatbot dependencies (inside activated backend venv):
 	pip install -r backend/chatbot/requirements.txt
@@ -108,10 +157,11 @@ Step 4 - Run the main backend as usual in another terminal (port 8000):
 	uvicorn backend.main:app --reload --port 8000
 
 Both terminals must stay open for the chatbot to work.
+(Or use npm start, which launches the chatbot automatically when the model is present.)
 If port 8001 is not running, the chatbot automatically falls back to
 the TF-IDF classifier (Step 2) — no crash, but reduced answer quality.
 
-9) Mobile App Setup and Run
+10) Mobile App Setup and Run
 First-time setup (install dependencies once):
 	cd mobile
 	npm install
@@ -141,7 +191,7 @@ Manual run (fallback — single service only, no port/PID cleanup):
 	Open the URL shown by Vite (usually http://localhost:5174).
 
 
-10) Emergency feature (SOS alerts)
+11) Emergency feature (SOS alerts)
 - Purpose: mobile SOS sends structured alerts to `/mobile/notify`. The backend persists an emergency `ChatMessage` and emits a realtime `emergency_alert` event to clinician dashboards via Socket.IO.
 - Install Socket.IO client (frontend):
 		cd frontend
@@ -155,7 +205,26 @@ Manual run (fallback — single service only, no port/PID cleanup):
 	- `socket.io-client` is required by the dashboard to receive live emergency alerts (push). Without it the dashboard will only show alerts via polling endpoints.
 	- Geolocation (`navigator.geolocation`) requires HTTPS on devices; `localhost` works for most dev setups.
 
-11) Mobile Enrollment & Email Setup
+12) Blockchain Medical Records (optional)
+Required only for the "Save to Blockchain" medical-history feature.
+
+Step 1 - Deploy the contract:
+	cd blockchain
+	npm install
+	npm run compile
+	npm run deploy:local   (local node)   OR   npm run deploy   (ganache network)
+	cd ..
+
+Step 2 - Add these to backend/.env:
+	PINATA_API_KEY=your_pinata_api_key
+	PINATA_SECRET_KEY=your_pinata_secret_key
+	ETH_PRIVATE_KEY=0xyour_node_private_key
+	FERNET_KEY=your_fernet_key_base64
+
+	Generate a Fernet key:
+		python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+13) Mobile Enrollment & Email Setup
 The patient enrollment feature sends an app link + patient ID to the patient's email
 when a Clinician/Assistant clicks "Enroll" on the patient's Monitoring tab.
 
@@ -194,4 +263,3 @@ Note: ngrok URL changes every time it restarts. Repeat steps 2–6 each session.
 	- Run backend: npm run dev
 	- Run mobile: cd mobile && npm run dev
 	- Open http://localhost:5174 in browser — no ngrok or Vercel changes needed
-	
