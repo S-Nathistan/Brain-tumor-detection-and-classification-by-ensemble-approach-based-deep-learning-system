@@ -1,0 +1,35 @@
+============================================================
+NeuroSight Chatbot - Intent Classifier Training Report
+============================================================
+
+Model      : TF-IDF (1-2 gram) + LinearSVC
+Test Accuracy  : 81.67%
+CV Accuracy    : 78.47% (+/- 3.14%)
+CV Scores      : ['79.2%', '75.0%', '75.0%', '80.0%', '83.2%']
+
+--- Classification Report ---
+
+              precision    recall  f1-score   support
+
+   diagnosis       0.72      0.95      0.82        19
+   emergency       1.00      0.75      0.86        20
+     general       0.69      0.82      0.75        22
+   nutrition       0.84      0.84      0.84        19
+     symptom       0.86      0.95      0.90        20
+   treatment       0.92      0.60      0.73        20
+
+    accuracy                           0.82       120
+   macro avg       0.84      0.82      0.82       120
+weighted avg       0.84      0.82      0.82       120
+
+
+--- Confusion Matrix ---
+Classes: ['diagnosis', 'emergency', 'general', 'nutrition', 'symptom', 'treatment']
+[[18  0  1  0  0  0]
+ [ 0 15  2  0  3  0]
+ [ 3  0 18  0  0  1]
+ [ 1  0  2 16  0  0]
+ [ 1  0  0  0 19  0]
+ [ 2  0  3  3  0 12]]
+
+[END OF REPORT]

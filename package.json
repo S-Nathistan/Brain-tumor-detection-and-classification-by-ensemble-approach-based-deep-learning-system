@@ -1,0 +1,12 @@
+{
+  "name": "neurosight-v0",
+  "private": true,
+  "scripts": {
+    "dev": ".\\backend\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --reload --port 8000",
+    "dev:backend": ".\\backend\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --reload --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-system.ps1",
+    "start:mobile": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-system.ps1 -Mobile",
+    "stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-system.ps1"
+  }
+}

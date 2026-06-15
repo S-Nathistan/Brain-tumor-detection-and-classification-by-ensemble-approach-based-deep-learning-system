@@ -3,18 +3,58 @@
 venv/
 __pycache__/
 *.pyc
+backend/.venv/
 
 # Node / React
 frontend/node_modules/
 dist/
 build/
 
+# Blockchain / Hardhat
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/
+
 # Data / Models
 backend/models/*.h5
 backend/uploads/
+uploaded_docs/
+uploaded_mris/
+uploads/
+tumor_models/
+
+# Mobile Chatbot — large model file (share via Google Drive)
+backend/chatbot/model/neurosight_distilbert/model.safetensors
+
+# Mobile — node modules
+mobile/node_modules/
+
+# Environment / Secrets
+.env
+backend/.env
 
 # IDE / System
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+
+# Ignore large model files and data arrays
+*.keras
+*.h5
+*.npy
+*.pt
+
+# Ignore specific large folders
+outputs_wavefusionnet/models/
+outputs_wavefusionnet/features/
+backend/tumor_models/*.keras
+# Local runtime PID tracking (start/stop-system.ps1)
+.neurosight-pids.json
+testing/.env.test
+
+# Datasets and test run artifacts
+dataset/
+testing/*
+!testing/evaluate_wavefusionnet.py

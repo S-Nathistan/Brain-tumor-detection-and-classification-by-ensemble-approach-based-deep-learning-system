@@ -1,25 +1,240 @@
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+# from backend.core.config import settings
+# from backend.db.database import Base, engine
+# from backend.routers import auth, results, dashboard
+
+# app = FastAPI(title="Brain Tumor Detection API")
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[settings.CORS_ORIGINS],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# # Create tables (simple dev approach; use Alembic later for prod)
+# Base.metadata.create_all(bind=engine)
+
+# app.include_router(auth.router)
+# app.include_router(results.router)
+# app.include_router(dashboard.router)
+
+# @app.get("/health")
+# def health():
+#     return {"ok": True}
+
+# =================================================================================================
+
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+# from backend.core.config import settings
+# from backend.db.database import Base, engine
+
+# # Notice we are importing patients and dashboard here!
+# from backend.routers import auth, results, patients, dashboard 
+
+# app = FastAPI(title="Brain Tumor Detection API")
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[settings.CORS_ORIGINS],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# # Create tables (simple dev approach; use Alembic later for prod)
+# Base.metadata.create_all(bind=engine)
+
+# # This is where FastAPI registers the routes
+# app.include_router(auth.router)
+# app.include_router(results.router)
+# app.include_router(patients.router)   # <--- Tells FastAPI to use the patients endpoints
+# app.include_router(dashboard.router)  # <--- Tells FastAPI to use the dashboard endpoints
+
+# @app.get("/health")
+# def health():
+#     return {"ok": True}
+
+
+# ====================================================================================================
+
+from contextlib import asynccontextmanager
+from urllib.parse import parse_qs
+import asyncio
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.core.config import settings
-from backend.db.database import Base, engine
-from backend.routers import auth, results
+import os
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
 
-app = FastAPI(title="Brain Tumor Detection API")
+from backend.core.config import settings, CORS_ORIGINS
+from backend.core.detector import get_model_readiness, predict as _predict_warmup
+from backend.db.database import Base, engine
+
+# ── Import all ORM models before routers so SQLAlchemy's mapper registry
+# ── has every class resolved before any relationship string is evaluated.
+import backend.models.user        # noqa: F401
+import backend.models.admission   # noqa: F401  ← must precede result
+import backend.models.result      # noqa: F401
+import backend.models.patient     # noqa: F401
+import backend.models.audit_log   # noqa: F401
+import backend.models.caretaker   # noqa: F401
+import backend.models.checkin     # noqa: F401
+import backend.models.chat_message # noqa: F401
+import backend.models.enrollment      # noqa: F401
+import backend.models.medication_log  # noqa: F401
+
+from backend.routers import auth, results, dashboard, patients, documents, treatment_plans, admissions, mobile, enrollment
+from backend.update_db import update_db
+
+logger = logging.getLogger(__name__)
+
+
+def _startup_warmup() -> None:
+    """Runs in a thread at startup. Loads models + compiles all TF graphs via @tf.function.
+
+    First run: model load + tf.function compilation can take 5-15 min (one-time cost).
+    After warmup: each XAI request runs the compiled graph — typically 30-90 s instead
+    of 4-5 min in eager mode.  Set SKIP_WARMUP=true in .env to disable (dev only).
+    """
+    import tempfile, numpy as np, cv2
+    from backend.core.detector import IMG_SIZE
+
+    # Step 1: load all model weights into memory
+    get_model_readiness(load=True)
+    logger.info("Models loaded. Running TF inference warmup…")
+
+    # Step 2: warm up predict() — triggers TF inference graph compilation
+    dummy = (np.random.randint(10, 245, (IMG_SIZE, IMG_SIZE, 3)) * 0.8).astype(np.uint8)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        cv2.imwrite(tmp.name, dummy)
+        tmp_path = tmp.name
+    try:
+        _predict_warmup(tmp_path)
+        logger.info("Predict warmup done — inference graph compiled.")
+    except Exception as exc:
+        logger.warning("Predict warmup failed (non-fatal): %s", exc)
+    finally:
+        import os
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    # Step 3: warm up XAI — discovers GradCAM layers + compiles gradient graphs
+    logger.info("Running XAI warmup (GradCAM layer scan + gradient graph compile)…")
+    try:
+        warmup_xai()
+    except Exception as exc:
+        logger.warning("XAI warmup failed (non-fatal): %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        update_db()
+    except Exception as exc:
+        logger.warning(f"DB migration check failed: {exc}")
+    if os.getenv("SKIP_WARMUP", "false").lower() != "true":
+        loop = asyncio.get_event_loop()
+        try:
+            logger.info("Starting model + XAI warmup (compiles TF graphs once — fast responses after this)…")
+            await loop.run_in_executor(None, _startup_warmup)
+            logger.info("All models and XAI graphs compiled and ready.")
+        except Exception as exc:
+            logger.warning(f"Startup warmup failed (first request will be slow): {exc}")
+    else:
+        logger.info("Warmup skipped (SKIP_WARMUP=true). First XAI request will trigger tf.function compilation.")
+    yield
+
+
+app = FastAPI(title="Brain Tumor Detection API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.CORS_ORIGINS],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create tables (simple dev approach; use Alembic later for prod)
+# Create tables — models already imported above, create_all sees all of them
 Base.metadata.create_all(bind=engine)
+
+class AuthenticatedStaticFiles(StaticFiles):
+    """StaticFiles gated by a valid JWT (staff or mobile token).
+
+    The token comes from the Authorization header when possible, or from a
+    `?token=` query parameter — <img src> / <a href> cannot set headers.
+    Signature + expiry are verified; no DB lookup, since these are
+    content-addressed (UUID) PHI files, not per-row authorization.
+    """
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and not self._is_authorized(scope):
+            response = JSONResponse({"detail": "Not authenticated"}, status_code=401)
+            await response(scope, receive, send)
+            return
+        await super().__call__(scope, receive, send)
+
+    @staticmethod
+    def _is_authorized(scope) -> bool:
+        token = None
+        for name, value in scope.get("headers", []):
+            if name == b"authorization":
+                header = value.decode("latin-1")
+                if header.lower().startswith("bearer "):
+                    token = header.split(None, 1)[1]
+                break
+        if not token:
+            params = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+            token = (params.get("token") or [None])[0]
+        if not token:
+            return False
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            return payload.get("sub") is not None
+        except JWTError:
+            return False
+
+
+# Serve MRI images: files stored as "uploads/<uuid>.jpg" in DB → mount so
+# GET /uploaded_mris/uploads/<uuid>.jpg resolves from the uploads/ directory.
+# MRI scans and clinical documents are PHI — require a valid token to fetch.
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploaded_mris/uploads", AuthenticatedStaticFiles(directory="uploads"), name="uploaded_mris")
+
+os.makedirs("uploads/avatars", exist_ok=True)
+app.mount("/avatars", StaticFiles(directory="uploads/avatars"), name="avatars")
+
+os.makedirs("uploaded_docs", exist_ok=True)
+app.mount("/uploaded_docs", AuthenticatedStaticFiles(directory="uploaded_docs"), name="uploaded_docs")
 
 app.include_router(auth.router)
 app.include_router(results.router)
+app.include_router(dashboard.router)
+app.include_router(patients.router)
+app.include_router(documents.router)
+app.include_router(treatment_plans.router)
+app.include_router(admissions.router)
+app.include_router(mobile.router)
+app.include_router(enrollment.router)
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    return {"status": "ok", "message": "Backend is running!"}
+
+
+@app.get("/health/model")
+def health_model(load: bool = False):
+    readiness = get_model_readiness(load=load)
+    return {
+        "status": "ok" if readiness["ready"] else "degraded",
+        "message": "Model is ready" if readiness["ready"] else "Model is not ready",
+        **readiness,
+    }

@@ -1,0 +1,506 @@
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from sqlalchemy.orm import Session, selectinload
+from typing import List
+import pytesseract
+from PIL import Image
+import io
+import re
+import fitz  # PyMuPDF
+
+from backend.core.config import settings
+from backend.core.audit import log_event
+from backend.core.security import get_current_active_user
+from backend.db.database import get_db
+from backend.models.patient import Patient
+from backend.models.caretaker import Caretaker
+from backend.models.chat_message import ChatMessage
+from backend.models.user import User
+from backend.models.checkin import CheckIn
+
+from backend.schemas.patient import PatientCreate, PatientRead, PatientResponse, PatientUpdate, OCRResponse, CaretakerRead
+from pydantic import BaseModel as _BaseModel
+from typing import Optional as _Optional
+from cryptography.fernet import Fernet
+from blockchain.medical_history_chain import (
+    encrypt_data, upload_to_pinata, send_hash_to_blockchain,
+    get_patient_records, fetch_and_decrypt_record, load_deployment
+)
+
+class CaretakerCreate(_BaseModel):
+    name: str
+    phone: str
+    relation: _Optional[str] = None
+
+class CaretakerUpdate(_BaseModel):
+    name: _Optional[str] = None
+    phone: _Optional[str] = None
+    relation: _Optional[str] = None
+
+class BlockchainRecordRequest(_BaseModel):
+    history_text: str
+
+class BlockchainRecordResponse(_BaseModel):
+    tx_hash: str
+    ipfs_hash: str
+    patient_id: str
+
+class BlockchainRecordsListResponse(_BaseModel):
+    patient_id: str
+    cids: list[str]
+    count: int
+
+# Add this line if you are on Windows and Tesseract is installed here:
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+router = APIRouter(prefix="/patients", tags=["patients"])
+
+# ==========================
+# 1. OCR ENDPOINT (Added by Shameeha)
+# ==========================
+@router.post("/ocr-extract", response_model=OCRResponse)
+async def extract_medical_report(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        if file.filename.lower().endswith(".pdf"):
+            pdf_document = fitz.open(stream=contents, filetype="pdf")
+            first_page = pdf_document.load_page(0)
+            # Direct extraction for digital PDFs (no Tesseract needed)
+            extracted_text = first_page.get_text()
+            # Fall back to OCR only for scanned PDFs with no embedded text
+            if len(extracted_text.strip()) < 50:
+                mat = fitz.Matrix(3, 3)
+                pix = first_page.get_pixmap(matrix=mat)
+                image = Image.open(io.BytesIO(pix.tobytes("png")))
+                extracted_text = pytesseract.image_to_string(image)
+        else:
+            image = Image.open(io.BytesIO(contents))
+            extracted_text = pytesseract.image_to_string(image)
+        data = OCRResponse()
+
+        # Patterns handle both "Label: Value" and two-line "LABEL\nValue" formats
+        name_match = re.search(r'(?i)(?:full\s+name|patient\s+name|name|patient)\s*[:\n]\s*([A-Za-z][^\n]{1,60})', extracted_text)
+        if name_match: data.name = name_match.group(1).strip()
+
+        age_match = re.search(r'(?i)\bage\b\s*[:\n]\s*(\d+)', extracted_text)
+        if age_match: data.age = age_match.group(1).strip()
+
+        gender_match = re.search(r'(?i)(?:biological\s+sex|gender)\s*[:\n]\s*(Male|Female|Other)', extracted_text)
+        if gender_match: data.gender = gender_match.group(1).strip().capitalize()
+
+        doc_match = re.search(r'(?i)(?:consulting\s+specialist|doctor|consultant)\s*[:\n]\s*(Dr\.?\s*[^\n]{2,50})', extracted_text)
+        if doc_match: data.assignedDoctor = doc_match.group(1).strip()
+
+        phone_match = re.search(r'(?i)(?:patient\s+)?phone(?:\s+number)?\s*[:\n]\s*([\+\d][\d\s\-\(\)]{5,25})', extracted_text)
+        if phone_match: data.phone = phone_match.group(1).strip()
+
+        email_match = re.search(r'(?i)(?:\w[\w\s]*\s+)?e[-\s]?mail\s*[:\n]\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})', extracted_text)
+        if email_match: data.email = email_match.group(1).strip()
+
+        addr_match = re.search(r'(?i)(?:home\s+)?address\s*[:\n]\s*([^\n]{5,150})', extracted_text)
+        if addr_match: data.address = addr_match.group(1).strip()
+
+        occ_match = re.search(r'(?i)occupation\s*[:\n]\s*([^\n]{2,50})', extracted_text)
+        if occ_match: data.occupation = occ_match.group(1).strip()
+
+        from_match = re.search(r'(?i)from\s*(?:\([^)]*\))?\s*[:\n]\s*([^\n]{2,80})', extracted_text)
+        if from_match: data.from_location = from_match.group(1).strip()
+
+        caretaker_name_match = re.search(r'(?i)caretaker\s+(?:full\s+)?name\s*[:\n]\s*([^\n]{2,60})', extracted_text)
+        if caretaker_name_match: data.caretakerName = caretaker_name_match.group(1).strip()
+
+        caretaker_phone_match = re.search(r'(?i)caretaker\s+phone(?:\s+number)?\s*[:\n]\s*([\+\d][\d\s\-\(\)]{5,25})', extracted_text)
+        if caretaker_phone_match: data.caretakerPhone = caretaker_phone_match.group(1).strip()
+
+        relation_match = re.search(r'(?i)\brelation\b\s*[:\n]\s*([^\n]{2,30})', extracted_text)
+        if relation_match: data.caretakerRelation = relation_match.group(1).strip()
+
+        symp_match = re.search(r'(?i)(?:presenting\s+)?symptoms[^\n]*\n(.*?)(?=\n{2,}[A-Z]|ADDITIONAL|SECTION|\Z)', extracted_text, re.DOTALL)
+        if symp_match: data.symptomsNotes = " ".join(symp_match.group(1).split())
+
+        return data
+    except Exception as e:
+        print(f"OCR Error: {e}")
+        raise HTTPException(status_code=500, detail=f"OCR Processing failed: {str(e)}")
+
+# ==========================
+# 2. CRUD ENDPOINTS (Combined)
+# ==========================
+
+# Create (Accepts both /patients and /patients/ with Audit Logging)
+@router.post("", response_model=PatientResponse)
+@router.post("/", response_model=PatientResponse, include_in_schema=False)
+def create_patient(
+    body: PatientCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    db_patient = db.query(Patient).filter(Patient.hospital_id == body.hospital_id).first()
+    if db_patient:
+        raise HTTPException(status_code=400, detail="Patient with this Hospital ID already exists")
+
+    patient_data = body.model_dump(exclude={"caretaker_name", "caretaker_phone", "caretaker_relation"})
+    new_patient = Patient(**patient_data)
+    db.add(new_patient)
+    db.flush()  # get new_patient.id without committing
+
+    if body.caretaker_name and body.caretaker_name.strip():
+        db.add(Caretaker(
+            patient_id=new_patient.id,
+            name=body.caretaker_name.strip(),
+            phone=(body.caretaker_phone or "").strip(),
+            relation=body.caretaker_relation or None,
+        ))
+
+    db.commit()
+    db.refresh(new_patient)
+
+    log_event(db, "Patient Record Created", user_id=current_user.id, ip=request.client.host, details=f"Created ID: {body.hospital_id}")
+
+    return new_patient
+
+# Read All
+@router.get("", response_model=List[PatientResponse])
+@router.get("/", response_model=List[PatientResponse], include_in_schema=False)
+def get_all_patients(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    query = db.query(Patient).options(selectinload(Patient.admissions), selectinload(Patient.clinician), selectinload(Patient.caretakers))
+    if current_user.role == "Clinician":
+        query = query.filter(Patient.assigned_doctor_id == current_user.id)
+    patients = query.order_by(Patient.id.desc()).all()
+    out = []
+    for p in patients:
+        obj = PatientResponse.model_validate(p)
+        obj.assigned_doctor = p.clinician.name if p.clinician else None
+        if p.admissions:
+            latest = p.admissions[-1]  # relationship ordered by id asc, so last = most recent
+            obj.current_joined_date = latest.admission_date
+            obj.current_discharge_date = latest.discharge_date or "Pending"
+        else:
+            obj.current_joined_date = p.joined_date
+            obj.current_discharge_date = p.discharge_date or "Pending"
+        out.append(obj)
+    return out
+
+
+
+
+# Read One
+@router.get("/{patient_id}", response_model=PatientResponse)
+def get_patient(patient_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    patient = db.query(Patient).options(selectinload(Patient.clinician), selectinload(Patient.caretakers)).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    obj = PatientResponse.model_validate(patient)
+    obj.assigned_doctor = patient.clinician.name if patient.clinician else None
+    return obj
+
+
+@router.get("/{patient_id}/checkins")
+def get_patient_checkins(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if current_user.role in {"Clinician", "Doctor"} and patient.assigned_doctor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    rows = (
+        db.query(CheckIn)
+        .filter(CheckIn.patient_id == patient_id)
+        .order_by(CheckIn.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": row.id,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "score": row.score,
+            "level": row.level,
+            "emergency": bool(row.emergency),
+            "trigger_source": row.trigger_source,
+            "headache": row.headache,
+            "seizure": row.seizure,
+            "energy": row.energy,
+            "nausea": row.nausea,
+            "medication": row.medication,
+            "overall": row.overall,
+            "note": row.note,
+        }
+        for row in rows
+    ]
+
+# Update
+@router.put("/{patient_id}", response_model=PatientResponse)
+def update_patient(
+    patient_id: int,
+    body: PatientUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    db_patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not db_patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_patient, key, value)
+
+    db.commit()
+    db.refresh(db_patient)
+    
+    # Audit Log (Nirojini's feature)
+    log_event(db, "Patient Record Updated", user_id=current_user.id, ip=request.client.host, details=f"Updated ID: {db_patient.hospital_id}")
+    
+    return db_patient
+
+# Delete
+@router.delete("/{patient_id}")
+def delete_patient(
+    patient_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    db_patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not db_patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    deleted_hospital_id = db_patient.hospital_id
+    db.delete(db_patient)
+    db.commit()
+    
+    # Audit Log (Nirojini's feature)
+    log_event(db, "Patient Record Deleted", user_id=current_user.id, ip=request.client.host, details=f"Deleted ID: {deleted_hospital_id}")
+    
+    # JSON response (Shameeha's feature)
+    return {"message": "Patient deleted"}
+
+
+# ── Caretaker endpoints ───────────────────────────────────────────────────────
+
+@router.get("/{patient_id}/caretakers", response_model=List[CaretakerRead])
+def list_caretakers(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return db.query(Caretaker).filter(Caretaker.patient_id == patient_id).all()
+
+
+@router.post("/{patient_id}/caretakers", response_model=CaretakerRead, status_code=201)
+def add_caretaker(
+    patient_id: int,
+    body: CaretakerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    caretaker = Caretaker(
+        patient_id=patient_id,
+        name=body.name.strip(),
+        phone=body.phone.strip(),
+        relation=body.relation,
+    )
+    db.add(caretaker)
+    db.commit()
+    db.refresh(caretaker)
+    return caretaker
+
+
+@router.delete("/{patient_id}/caretakers/{caretaker_id}", status_code=204)
+def remove_caretaker(
+    patient_id: int,
+    caretaker_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    caretaker = db.query(Caretaker).filter(
+        Caretaker.id == caretaker_id,
+        Caretaker.patient_id == patient_id,
+    ).first()
+    if not caretaker:
+        raise HTTPException(status_code=404, detail="Caretaker not found")
+    db.delete(caretaker)
+    db.commit()
+
+
+@router.patch("/{patient_id}/caretakers/{caretaker_id}", response_model=CaretakerRead)
+def update_caretaker(
+    patient_id: int,
+    caretaker_id: int,
+    body: CaretakerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    caretaker = db.query(Caretaker).filter(
+        Caretaker.id == caretaker_id,
+        Caretaker.patient_id == patient_id,
+    ).first()
+    if not caretaker:
+        raise HTTPException(status_code=404, detail="Caretaker not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(caretaker, field, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(caretaker)
+    return caretaker
+
+
+# ── Blockchain record endpoint ────────────────────────────────────────────────
+
+@router.post("/{patient_id}/blockchain-record", response_model=BlockchainRecordResponse)
+async def add_blockchain_record(
+    patient_id: int,
+    body: BlockchainRecordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    cfg = settings
+    missing = [k for k, v in {
+        "PINATA_API_KEY": cfg.PINATA_API_KEY,
+        "PINATA_SECRET_KEY": cfg.PINATA_SECRET_KEY,
+        "ETH_PRIVATE_KEY": cfg.ETH_PRIVATE_KEY,
+        "FERNET_KEY": cfg.FERNET_KEY,
+    }.items() if not v]
+    if missing:
+        raise HTTPException(status_code=503, detail=f"Blockchain not configured. Missing: {missing}")
+
+    try:
+        contract_address, abi = load_deployment()
+        encryption_key   = cfg.FERNET_KEY.encode()
+        chain_patient_id = str(patient.hospital_id)
+
+        # Step 1 — encrypt locally
+        ciphertext = encrypt_data(body.history_text, encryption_key)
+
+        # Step 2 — pin to IPFS
+        ipfs_hash = upload_to_pinata(
+            ciphertext, chain_patient_id, cfg.PINATA_API_KEY, cfg.PINATA_SECRET_KEY
+        )
+
+        # Step 3 — anchor CID on-chain
+        receipt = send_hash_to_blockchain(
+            chain_patient_id, ipfs_hash, cfg.ETH_PRIVATE_KEY, contract_address, abi
+        )
+        tx_hash = receipt["transactionHash"].hex()
+
+        log_event(
+            db, "Blockchain Record Added",
+            user_id=current_user.id,
+            ip=request.client.host,
+            details=f"Patient {chain_patient_id} | tx: {tx_hash}",
+        )
+
+        return BlockchainRecordResponse(
+            tx_hash    = tx_hash,
+            ipfs_hash  = ipfs_hash,
+            patient_id = chain_patient_id,
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain write failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records", response_model=BlockchainRecordsListResponse)
+def get_blockchain_records(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    try:
+        contract_address, abi = load_deployment()
+        chain_patient_id = str(patient.hospital_id)
+        cids = get_patient_records(chain_patient_id, contract_address, abi)
+        return BlockchainRecordsListResponse(
+            patient_id=chain_patient_id,
+            cids=cids,
+            count=len(cids),
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Blockchain read failed: {str(e)}")
+
+
+@router.get("/{patient_id}/blockchain-records/{cid}/decrypt")
+def decrypt_blockchain_record(
+    patient_id: int,
+    cid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    if not settings.FERNET_KEY:
+        raise HTTPException(status_code=503, detail="Decryption key not configured.")
+
+    try:
+        plaintext = fetch_and_decrypt_record(cid, settings.FERNET_KEY.encode())
+        return {"cid": cid, "plaintext": plaintext}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Decryption failed: {str(e)}")
+
+
+# ── Patient chat history (clinician view) ────────────────────────────────────
+
+class ChatMessageOut(_BaseModel):
+    id: int
+    user_message: str
+    bot_reply: str
+    topic: _Optional[str]
+    emergency: bool
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/{patient_id}/chat", response_model=list[ChatMessageOut])
+def get_patient_chat_history(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.patient_id == patient_id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
+    return [
+        ChatMessageOut(
+            id=r.id,
+            user_message=r.user_message,
+            bot_reply=r.bot_reply,
+            topic=r.topic,
+            emergency=bool(r.emergency),
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in rows
+    ]

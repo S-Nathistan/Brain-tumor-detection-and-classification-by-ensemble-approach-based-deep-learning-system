@@ -1,6 +1,13 @@
+import os
 from sqlalchemy import create_engine, text
 
-DATABASE_URL = "postgresql+psycopg2://postgres:password@localhost:5432/brain_tumor"
+DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError(
+        "Missing TEST_DATABASE_URL environment variable. "
+        "Set TEST_DATABASE_URL to your test database connection string."
+    )
 
 try:
     engine = create_engine(DATABASE_URL)
